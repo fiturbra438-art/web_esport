@@ -278,11 +278,9 @@ function Sidebar({
 function Header({
   page,
   openMenu,
-  onUpdateUsername,
 }: {
   page: Page
   openMenu: () => void
-  onUpdateUsername?: () => void
 }) {
   return (
     <header className="topbar">
@@ -300,16 +298,6 @@ function Header({
         </div>
       </div>
       <div className="top-actions">
-        {onUpdateUsername && (
-          <button
-            className="btn ghost"
-            style={{ fontSize: "12px", padding: "6px 12px", minHeight: "34px" }}
-            onClick={onUpdateUsername}
-            title="Ubah Username Player"
-          >
-            <Icon name="user" size={14} /> Ganti Username
-          </button>
-        )}
         <button className="icon-btn notification" aria-label="Notifikasi">
           <Icon name="bell" size={19} />
           <i />
@@ -437,16 +425,20 @@ function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
           </div>
         </div>
         <div className="rank-card">
-          <span>MMR & RANKING</span>
+          <span className="rank-label">STATUS KOMPETITIF</span>
           <div className="rank-emblem">
-            <Icon name="shield" size={44} />
-            <b>{Math.floor(mmr / 500)}</b>
+            <Icon name="shield" size={48} />
+            <b>{Math.max(1, Math.floor(mmr / 500))}</b>
           </div>
-          <strong>{mmr >= 2000 ? "MASTER" : mmr >= 1500 ? "DIAMOND" : "GOLD"} TIER</strong>
-          <small>{mmr} MMR Point</small>
+          <strong className="rank-title">{mmr >= 2200 ? "CHALLENGER" : mmr >= 1900 ? "MASTER" : mmr >= 1500 ? "DIAMOND" : "GOLD"}</strong>
+          <div className="rank-meta-row">
+            <span>Rating MMR</span>
+            <b>{mmr} PTS</b>
+          </div>
           <div className="progress">
             <i style={{ width: `${Math.min(100, (mmr / 2500) * 100)}%` }} />
           </div>
+          <small className="rank-sub">Target Tier Berikutnya: 2,500 MMR</small>
         </div>
       </section>
 
@@ -637,16 +629,20 @@ function ProfilePage({
           </div>
         </div>
         <div className="rank-card">
-          <span>RANK & TIER</span>
+          <span className="rank-label">RANK & TIER RESMI</span>
           <div className="rank-emblem">
-            <Icon name="shield" size={44} />
-            <b>{Math.floor(mmr / 500)}</b>
+            <Icon name="shield" size={48} />
+            <b>{Math.max(1, Math.floor(mmr / 500))}</b>
           </div>
-          <strong>{tier} TIER</strong>
-          <small>{mmr} Rating Points (MMR)</small>
+          <strong className="rank-title">{tier} TIER</strong>
+          <div className="rank-meta-row">
+            <span>Rating Kompetitif</span>
+            <b>{mmr} PTS</b>
+          </div>
           <div className="progress">
             <i style={{ width: `${Math.min(100, (mmr / 2500) * 100)}%` }} />
           </div>
+          <small className="rank-sub">Maksimal Divisi: Master / Challenger</small>
         </div>
       </section>
 
@@ -2417,7 +2413,6 @@ export default function App() {
         <Header
           page={page}
           openMenu={() => setMobileNav(true)}
-          onUpdateUsername={currentUser !== "Player" ? () => setEditUsernameOpen(true) : undefined}
         />
         <main>
           {page === "dashboard" && <Dashboard setPage={setPage} />}

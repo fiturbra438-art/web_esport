@@ -1,0 +1,2127 @@
+{
+  "info": {
+    "_postman_id": "da13b9e4-9082-4c41-95f1-a91be84211bb",
+    "name": "Esport API - Local Integration Tests",
+    "description": "Sequential integration tests for all implemented API endpoints. Creates temporary users, teams, tournament, and match, exercises protected operations, and cleans up generated data at the end. Set adminUsername and adminPassword to an existing admin account before running.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:8080"
+    },
+    {
+      "key": "captainUsername",
+      "value": ""
+    },
+    {
+      "key": "memberUsername",
+      "value": ""
+    },
+    {
+      "key": "captainId",
+      "value": ""
+    },
+    {
+      "key": "memberId",
+      "value": ""
+    },
+    {
+      "key": "teamAlpha",
+      "value": ""
+    },
+    {
+      "key": "teamBeta",
+      "value": ""
+    },
+    {
+      "key": "teamId",
+      "value": ""
+    },
+    {
+      "key": "tournamentName",
+      "value": ""
+    },
+    {
+      "key": "tournamentId",
+      "value": ""
+    },
+    {
+      "key": "matchId",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "adminUsername",
+      "value": ""
+    },
+    {
+      "key": "adminPassword",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "captainToken",
+      "value": ""
+    },
+    {
+      "key": "thirdUsername",
+      "value": ""
+    },
+    {
+      "key": "thirdId",
+      "value": ""
+    },
+    {
+      "key": "thirdToken",
+      "value": ""
+    },
+    {
+      "key": "teamBetaId",
+      "value": ""
+    },
+    {
+      "key": "newCaptainUsername",
+      "value": ""
+    },
+    {
+      "key": "demoPassword",
+      "value": ""
+    },
+    {
+      "key": "memberToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('API merespons', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.text()).to.include('API Turnamen E-Sport Berjalan');",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Register captain",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const suffix = Date.now().toString();",
+              "pm.collectionVariables.set('captainUsername', `pm_captain_${suffix}`);",
+              "pm.collectionVariables.set('demoPassword', 'Postman-Demo-Password-123!');"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Registrasi captain berhasil dan tidak membocorkan password', function () {",
+              "    pm.response.to.have.status(201);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.data.username).to.eql(pm.collectionVariables.get('captainUsername'));",
+              "    pm.expect(body.data.id).to.be.a('number');",
+              "    pm.expect(body.data).not.to.have.property('password');",
+              "    pm.collectionVariables.set('captainId', String(body.data.id));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{captainUsername}}\",\n  \"password\": \"{{demoPassword}}\",\n  \"mmr_point\": 1200\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/users"
+      }
+    },
+    {
+      "name": "2. Register team member",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('memberUsername', `pm_member_${Date.now()}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Registrasi member berhasil', function () {",
+              "    pm.response.to.have.status(201);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.data.username).to.eql(pm.collectionVariables.get('memberUsername'));",
+              "    pm.expect(body.data).not.to.have.property('password');",
+              "    pm.collectionVariables.set('memberId', String(body.data.id));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{memberUsername}}\",\n  \"password\": \"{{demoPassword}}\",\n  \"mmr_point\": 1000\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/users"
+      }
+    },
+    {
+      "name": "2d. Register third test user",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/users",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"username\":  \"{{thirdUsername}}\",\r\n    \"password\":  \"{{demoPassword}}\",\r\n    \"mmr_point\":  900\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('thirdUsername', 'pm_third_' + Date.now());"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('User ketiga berhasil didaftarkan tanpa membocorkan password', function () { pm.response.to.have.status(201); const body = pm.response.json(); pm.expect(body.data.username).to.eql(pm.collectionVariables.get('thirdUsername')); pm.expect(body.data).not.to.have.property('password'); pm.collectionVariables.set('thirdId', String(body.data.id)); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2a. Reject protected mutation without token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Mutasi tanpa token ditolak', function () {",
+              "    pm.response.to.have.status(401);",
+              "    pm.expect(pm.response.json()).to.have.property('error');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Should be rejected\",\"captain_username\":\"nobody\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/teams"
+      }
+    },
+    {
+      "name": "2b. Reject protected mutation with invalid token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Mutasi dengan token tidak valid ditolak', function () {",
+              "    pm.response.to.have.status(401);",
+              "    pm.expect(pm.response.json()).to.have.property('error');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Should be rejected\",\"captain_username\":\"nobody\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/teams",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "not-a-valid-token",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "2c. Login captain and save JWT",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login captain menghasilkan token Bearer', function () { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body.token_type).to.eql('Bearer'); pm.expect(body.access_token).to.be.a('string').and.not.empty; pm.expect(body.user.role).to.eql('user'); pm.collectionVariables.set('captainToken', body.access_token); pm.collectionVariables.set('token', body.access_token); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{captainUsername}}\",\n  \"password\": \"{{demoPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "3. Get captain profile",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Profil user berisi data aman', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.data.id).to.eql(Number(pm.collectionVariables.get('captainId')));",
+              "    pm.expect(body.data).not.to.have.property('password');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/users/by-username/{{captainUsername}}"
+      }
+    },
+    {
+      "name": "3a. Update own username",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/users/me",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"username\":  \"{{newCaptainUsername}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{captainToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('newCaptainUsername', 'pm_renamed_' + Date.now());"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Pengguna dapat mengubah username sendiri', function () { pm.response.to.have.status(200); const body = pm.response.json(); pm.expect(body.data.username).to.eql(pm.collectionVariables.get('newCaptainUsername')); pm.expect(body.data.mmr_point).to.eql(1200); pm.collectionVariables.set('captainUsername', body.data.username); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3b. Login member to create Team Beta",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"username\":  \"{{memberUsername}}\",\r\n    \"password\":  \"{{demoPassword}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login kapten Beta berhasil', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().user.username).to.eql(pm.collectionVariables.get('memberUsername')); pm.collectionVariables.set('memberToken', pm.response.json().access_token); pm.collectionVariables.set('token', pm.response.json().access_token); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Create Team Alpha",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('teamAlpha', `Postman Alpha ${Date.now()}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Team Alpha berhasil dibuat', function () {",
+              "    pm.response.to.have.status(201);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.data.name).to.eql(pm.collectionVariables.get('teamAlpha'));",
+              "    pm.expect(body.data.captain_id).to.eql(Number(pm.collectionVariables.get('captainId')));",
+              "    pm.collectionVariables.set('teamId', String(body.data.id));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{teamAlpha}}\",\n  \"captain_username\": \"{{captainUsername}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/teams",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{captainToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. Create Team Beta",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Team Beta dibuat oleh kapten yang login', function () { pm.response.to.have.status(201); const data = pm.response.json().data; pm.expect(data.name).to.eql(pm.collectionVariables.get('teamBeta')); pm.expect(data.captain_id).to.eql(Number(pm.collectionVariables.get('memberId'))); pm.collectionVariables.set('teamBetaId', String(data.id)); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{teamBeta}}\",\n  \"captain_username\": \"{{memberUsername}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/teams",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{memberToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "6. Join member to Alpha",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Member berhasil bergabung', function () {",
+              "    pm.response.to.have.status(201);",
+              "    pm.expect(pm.response.json().message).to.be.a('string');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"team_name\":\"{{teamAlpha}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/teams/join",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{memberToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "7. Reject duplicate team member",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Anggota duplikat ditolak', function () {",
+              "    pm.response.to.have.status(409);",
+              "    pm.expect(pm.response.json()).to.have.property('error');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"team_name\":\"{{teamAlpha}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/teams/join",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{memberToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "7a. Login third user",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"username\":  \"{{thirdUsername}}\",\r\n    \"password\":  \"{{demoPassword}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login user ketiga berhasil', function () { pm.response.to.have.status(200); pm.collectionVariables.set('thirdToken', pm.response.json().access_token); pm.collectionVariables.set('token', pm.response.json().access_token); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7b. Join third user to Alpha",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/teams/join",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"team_name\":\"{{teamAlpha}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{thirdToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('User ketiga bergabung ke Team Alpha', function () { pm.response.to.have.status(201); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7c. Join third user to Beta",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/teams/join",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"team_name\":\"{{teamBeta}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{thirdToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('User ketiga bergabung ke Team Beta', function () { pm.response.to.have.status(201); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7d. Join renamed captain to Beta",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/teams/join",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"team_name\":\"{{teamBeta}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{captainToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Kapten Alpha bergabung sebagai anggota Beta', function () { pm.response.to.have.status(201); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7e. List all teams",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/teams/list"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Direktori tim memuat Alpha dan Beta', function () { pm.response.to.have.status(200); const data = pm.response.json().data; pm.expect(data).to.be.an('array'); pm.expect(data.some(team => team.id === Number(pm.collectionVariables.get('teamId')))).to.eql(true); pm.expect(data.some(team => team.id === Number(pm.collectionVariables.get('teamBetaId')))).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Get team profile",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Profil tim berisi kapten dan anggota', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const data = pm.response.json().data;",
+              "    pm.expect(data.id).to.eql(Number(pm.collectionVariables.get('teamId')));",
+              "    pm.expect(data.name).to.eql(pm.collectionVariables.get('teamAlpha'));",
+              "    pm.expect(data.members.map(member => member.username)).to.include(pm.collectionVariables.get('captainUsername'));",
+              "    pm.expect(data.members.map(member => member.username)).to.include(pm.collectionVariables.get('memberUsername'));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/teams/by-name/{{teamAlpha}}"
+      }
+    },
+    {
+      "name": "9. Transfer team captain",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Transfer kapten berhasil', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json()).to.have.property('message');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"team_name\": \"{{teamAlpha}}\",\n  \"new_captain_username\": \"{{memberUsername}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/teams/captain",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{captainToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "10. Verify captain and remove member",
+      "item": [
+        {
+          "name": "10a. Verify new captain",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Kapten baru tersimpan di profil tim', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().data.captain_id).to.eql(Number(pm.collectionVariables.get('memberId')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/teams/by-name/{{teamAlpha}}"
+          }
+        },
+        {
+          "name": "10b. Restore original captain",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Kapten awal berhasil dikembalikan', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"team_name\": \"{{teamAlpha}}\",\n  \"new_captain_username\": \"{{captainUsername}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teams/captain",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{memberToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "10c. Remove former captain from Beta",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Anggota berhasil dihapus dari roster', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"team_name\":  \"{{teamBeta}}\",\r\n    \"username\":  \"{{captainUsername}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/api/teams/members",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{memberToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10f. Login captain for registration",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/auth/login",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"username\":  \"{{captainUsername}}\",\r\n    \"password\":  \"{{demoPassword}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login captain setelah perubahan username berhasil', function () { pm.response.to.have.status(200); pm.collectionVariables.set('captainToken', pm.response.json().access_token); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10g. Third user leaves Alpha",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/teams/leave",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"team_name\":  \"{{teamAlpha}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{thirdToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Anggota biasa dapat keluar dari tim', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10d. Reject tournament creation for regular user",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Pengguna biasa tidak dapat membuat turnamen', function () {",
+              "    pm.response.to.have.status(403);",
+              "    pm.expect(pm.response.json().error).to.eql('Hanya admin yang dapat mengelola turnamen');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"Must Be Rejected\",\n  \"max_teams\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/tournaments",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{token}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "10e. Login tournament admin",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login admin berhasil dan role terverifikasi', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const body = pm.response.json();",
+              "    pm.expect(body.user.role).to.eql('admin');",
+              "    pm.collectionVariables.set('adminToken', body.access_token);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "11. Create tournament",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.collectionVariables.set('tournamentName', `Postman Cup ${Date.now()}`);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Turnamen berhasil dibuat oleh admin', function () {",
+              "    pm.response.to.have.status(201);",
+              "    const data = pm.response.json().data;",
+              "    pm.expect(data.name).to.eql(pm.collectionVariables.get('tournamentName'));",
+              "    pm.expect(data.id).to.be.a('number');",
+              "    pm.expect(data.total_slots).to.eql(1);",
+              "    pm.expect(data.available_slots).to.eql(1);",
+              "    pm.collectionVariables.set('tournamentId', String(data.id));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{tournamentName}}\",\n  \"max_teams\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/tournaments",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{adminToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "11a. Reject duplicate tournament name",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Nama turnamen yang sama ditolak dengan HTTP 409', function () {",
+              "    pm.response.to.have.status(409);",
+              "    pm.expect(pm.response.json().error).to.eql('Nama turnamen sudah digunakan');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"name\": \"{{tournamentName}}\",\n  \"max_teams\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/tournaments",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{adminToken}}",
+              "type": "string"
+            }
+          ]
+        },
+        "description": "Jalankan setelah request 11. Create tournament. Nama sama sengaja digunakan untuk menguji HTTP 409."
+      }
+    },
+    {
+      "name": "12. List tournaments",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Daftar turnamen memuat turnamen yang baru dibuat', function () {",
+              "    pm.response.to.have.status(200);",
+              "    const data = pm.response.json().data;",
+              "    pm.expect(data).to.be.an('array');",
+              "    pm.expect(data.some(tournament => tournament.id === Number(pm.collectionVariables.get('tournamentId')))).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tournaments"
+      }
+    },
+    {
+      "name": "13. Register Alpha to tournament",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Pendaftaran tim ke turnamen berhasil', function () {",
+              "    pm.response.to.have.status(201);",
+              "    pm.expect(pm.response.json()).to.have.property('message');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tournament_name\": \"{{tournamentName}}\",\n  \"team_name\": \"{{teamAlpha}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/tournaments/register",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{captainToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "13d. List tournament entrants",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tournaments/by-name/{{tournamentName}}/teams"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Daftar peserta turnamen memuat Alpha', function () { pm.response.to.have.status(200); const data = pm.response.json().data; pm.expect(data).to.be.an('array'); pm.expect(data.some(team => team.team_id === Number(pm.collectionVariables.get('teamId')))).to.eql(true); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13a. Login as Beta captain",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login kapten Beta berhasil', function () { pm.response.to.have.status(200); pm.expect(pm.response.json().user.username).to.eql(pm.collectionVariables.get('memberUsername')); pm.collectionVariables.set('memberToken', pm.response.json().access_token); pm.collectionVariables.set('betaToken', pm.response.json().access_token); pm.collectionVariables.set('token', pm.response.json().access_token); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{memberUsername}}\",\n  \"password\": \"{{demoPassword}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/auth/login"
+      }
+    },
+    {
+      "name": "13b. Reject registration when tournament is full",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Pendaftaran ditolak saat kuota turnamen penuh', function () {",
+              "    pm.response.to.have.status(409);",
+              "    pm.expect(pm.response.json().error).to.eql('Kuota tim turnamen sudah penuh');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tournament_name\": \"{{tournamentName}}\",\n  \"team_name\": \"{{teamBeta}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/tournaments/register",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{memberToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "13c. Reject duplicate tournament registration",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Pendaftaran ganda ditolak dan dikembalikan sebagai conflict', function () {",
+              "    pm.response.to.have.status(409);",
+              "    pm.expect(pm.response.json().error).to.eql('Tim sudah terdaftar pada turnamen ini');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tournament_name\": \"{{tournamentName}}\",\n  \"team_name\": \"{{teamAlpha}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/tournaments/register",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{captainToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "14. Create match",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Pertandingan berhasil dibuat', function () {",
+              "    pm.response.to.have.status(201);",
+              "    pm.expect(pm.response.json()).to.have.property('message');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tournament_name\": \"{{tournamentName}}\",\n  \"team1_name\": \"{{teamAlpha}}\",\n  \"team2_name\": \"{{teamBeta}}\",\n  \"round_number\": 1\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/matches",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{adminToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "15. List tournament matches",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Daftar pertandingan memuat Alpha vs Beta', function () { pm.response.to.have.status(200); const data = pm.response.json().data; const match = data.find(item => item.team1_name === pm.collectionVariables.get('teamAlpha') && item.team2_name === pm.collectionVariables.get('teamBeta')); pm.expect(match, 'pertandingan Alpha vs Beta').to.exist; pm.collectionVariables.set('matchId', String(match.id)); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tournaments/by-name/{{tournamentName}}/matches"
+      }
+    },
+    {
+      "name": "16. Update match schedule",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Jadwal pertandingan berhasil diubah', function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json()).to.have.property('message');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tournament_name\": \"{{tournamentName}}\",\n  \"team_name\": \"{{teamAlpha}}\",\n  \"schedule_time\": \"2026-10-14 19:30:00\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/matches/by-name/schedule",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{adminToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "17. Reject invalid schedule format",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Format jadwal salah ditolak dengan 400', function () {",
+              "    pm.response.to.have.status(400);",
+              "    pm.expect(pm.response.json()).to.have.property('error');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tournament_name\": \"{{tournamentName}}\",\n  \"team_name\": \"{{teamAlpha}}\",\n  \"schedule_time\": \"ini-bukan-tanggal\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/api/matches/by-name/schedule",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{adminToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "17a. Set match winner",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/matches/by-name/result",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"tournament_name\": \"{{tournamentName}}\",\n  \"team_name\": \"{{teamAlpha}}\",\n  \"winner_team_name\": \"{{teamAlpha}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{adminToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Admin dapat mencatat pemenang pertandingan', function () { pm.response.to.have.status(200); pm.expect(pm.response.json()).to.have.property('message'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17b. Verify match result",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/tournaments/by-name/{{tournamentName}}/matches"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Jadwal menampilkan waktu dan pemenang', function () { pm.response.to.have.status(200); const match = pm.response.json().data.find(item => item.id === Number(pm.collectionVariables.get('matchId'))); pm.expect(match).to.exist; pm.expect(match.winner_name).to.eql(pm.collectionVariables.get('teamAlpha')); pm.expect(match.status).to.eql('completed'); pm.expect(match.schedule_time).to.include('2026-10-14 19:30:00'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17c. Beta captain leaves and transfers captaincy",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/teams/leave",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"team_name\":  \"{{teamBeta}}\",\r\n    \"new_captain_username\":  \"{{thirdUsername}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{memberToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Kapten dapat keluar setelah menunjuk pengganti', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17d. Reject account deletion without replacement",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/users/me",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"captain_replacements\":  [\r\n\r\n                             ]\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{captainToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Penghapusan akun kapten wajib memiliki pengganti', function () { pm.response.to.have.status(400); pm.expect(pm.response.json()).to.have.property('error'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "17e. Delete captain account and transfer Alpha",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/users/me",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"captain_replacements\": [\r\n    {\r\n      \"team_id\": {{teamId}},\r\n      \"new_captain_username\": \"{{memberUsername}}\"\r\n    }\r\n  ]\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{captainToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Akun kapten dihapus setelah kepemimpinan Alpha dialihkan', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18. Verify deleted user profile is missing",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/users/by-username/{{captainUsername}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Profil akun yang dihapus mengembalikan 404', function () { pm.response.to.have.status(404); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "18. Reject missing user profile",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('User yang tidak ada menghasilkan 404', function () {",
+              "    pm.response.to.have.status(404);",
+              "    pm.expect(pm.response.json()).to.have.property('error');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/users/2147483647"
+      }
+    },
+    {
+      "name": "19. Cleanup tournament test data",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Turnamen uji berhasil dihapus', function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": "{{baseUrl}}/api/tournaments/{{tournamentName}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{adminToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "20. Delete Team Alpha",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/teams/delete",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"team_name\":  \"{{teamAlpha}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{memberToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Kapten dapat menghapus Team Alpha', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "21. Delete Team Beta",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/teams/delete",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"team_name\":  \"{{teamBeta}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{thirdToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Kapten pengganti dapat menghapus Team Beta', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "22. Delete remaining member account",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/users/me",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"captain_replacements\":  [\r\n\r\n                             ]\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{memberToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Akun anggota yang tidak lagi memimpin tim dapat dihapus', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "23. Delete remaining third account",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/users/me",
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"captain_replacements\":  [\r\n\r\n                             ]\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{thirdToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Akun anggota terakhir dapat dihapus', function () { pm.response.to.have.status(200); });"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

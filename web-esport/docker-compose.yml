@@ -1,0 +1,16 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: esport_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: esport_password_123
+      POSTGRES_DB: TOURNAMEN_ESPORT
+    ports:
+      - "5433:5432"
+    volumes:
+      - esport_db_data:/var/lib/postgresql/data
+
+volumes:
+  esport_db_data:

@@ -3,6 +3,7 @@ import ArenaApp, { ScreenGallery } from "../App"
 
 export const router = createBrowserRouter([
   { path: "/", Component: ArenaApp },
+  { path: "/profile", Component: ArenaApp },
   { path: "/teams", Component: ArenaApp },
   { path: "/tournaments", Component: ArenaApp },
   { path: "/schedule", Component: ArenaApp },

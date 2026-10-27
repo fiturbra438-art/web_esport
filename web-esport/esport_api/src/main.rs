@@ -5,7 +5,9 @@ use axum::{
 use dotenvy::dotenv;
 use sqlx::postgres::PgPoolOptions;
 use std::env;
+use std::path::PathBuf;
 use tower_http::cors::{Any, CorsLayer};
+use tower_http::services::{ServeDir, ServeFile};
 use tracing_subscriber::EnvFilter;
 
 mod auth;
@@ -91,8 +93,13 @@ async fn main() {
         .allow_methods(Any)
         .allow_headers(Any);
 
+    let dist_path = PathBuf::from("../dist");
+    let index_file = dist_path.join("index.html");
+    let serve_dir = ServeDir::new(&dist_path)
+        .fallback(ServeFile::new(index_file));
+
     let app = Router::new()
-        .route("/", get(|| async { "API Turnamen E-Sport Berjalan cukkk" }))
+        .route("/api", get(|| async { "API Turnamen E-Sport Berjalan" }))
         .route("/api/users", post(handlers::register_user))
         .route("/api/auth/login", post(handlers::login))
         .route(
@@ -126,7 +133,8 @@ async fn main() {
         .merge(protected_routes)
         .layer(cors)
         .layer(Extension(jwt_config))
-        .with_state(pool);
+        .with_state(pool)
+        .fallback_service(serve_dir);
 
     let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
         .await

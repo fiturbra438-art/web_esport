@@ -13,7 +13,7 @@ import {
   UserProfile,
 } from "./api"
 
-type Page = "dashboard" | "team" | "tournament" | "schedule" | "admin" | "login"
+type Page = "dashboard" | "profile" | "team" | "tournament" | "schedule" | "admin" | "login"
 type IconName = "grid" | "users" | "trophy" | "calendar" | "shield" | "logOut" | "bell" | "search" | "arrow" | "plus" | "trash" | "crown" | "check" | "clock" | "swords" | "menu" | "close" | "user" | "mail" | "lock" | "gamepad" | "chevron" | "more" | "bolt"
 
 const photos = {
@@ -150,6 +150,7 @@ function Icon({ name, size = 20 }: { name: IconName; size?: number }) {
 
 const navItems: { page: Page; label: string; icon: IconName }[] = [
   { page: "dashboard", label: "Dashboard", icon: "grid" },
+  { page: "profile", label: "Profil Saya", icon: "user" },
   { page: "team", label: "Tim Saya", icon: "users" },
   { page: "tournament", label: "Turnamen", icon: "trophy" },
   { page: "schedule", label: "Jadwal", icon: "calendar" },
@@ -157,6 +158,7 @@ const navItems: { page: Page; label: string; icon: IconName }[] = [
 
 const pageTitles: Record<Page, string> = {
   dashboard: "Dashboard Player",
+  profile: "Profil Player & Statistik",
   team: "Detail Tim",
   tournament: "Detail Turnamen",
   schedule: "Jadwal Pertandingan",
@@ -183,6 +185,7 @@ function Sidebar({
   open,
   close,
   username,
+  role,
   onLogout,
 }: {
   page: Page
@@ -190,6 +193,7 @@ function Sidebar({
   open: boolean
   close: () => void
   username: string
+  role: string
   onLogout: () => void
 }) {
   return (
@@ -241,16 +245,18 @@ function Sidebar({
               {item.page === "schedule" && <em>3</em>}
             </button>
           ))}
-          <button
-            className={page === "admin" ? "active" : ""}
-            onClick={() => {
-              setPage("admin")
-              close()
-            }}
-          >
-            <Icon name="shield" />
-            <span>Admin Center</span>
-          </button>
+          {role === "admin" && (
+            <button
+              className={page === "admin" ? "active" : ""}
+              onClick={() => {
+                setPage("admin")
+                close()
+              }}
+            >
+              <Icon name="shield" />
+              <span>Admin Center</span>
+            </button>
+          )}
         </nav>
         <div className="sidebar-user">
           <div className="avatar">{username.slice(0, 2).toUpperCase()}</div>
@@ -269,7 +275,15 @@ function Sidebar({
   )
 }
 
-function Header({ page, openMenu }: { page: Page; openMenu: () => void }) {
+function Header({
+  page,
+  openMenu,
+  onUpdateUsername,
+}: {
+  page: Page
+  openMenu: () => void
+  onUpdateUsername?: () => void
+}) {
   return (
     <header className="topbar">
       <div>
@@ -286,19 +300,20 @@ function Header({ page, openMenu }: { page: Page; openMenu: () => void }) {
         </div>
       </div>
       <div className="top-actions">
-        <label className="search">
-          <Icon name="search" size={17} />
-          <input aria-label="Cari" placeholder="Cari turnamen, tim..." />
-          <kbd>⌘ K</kbd>
-        </label>
+        {onUpdateUsername && (
+          <button
+            className="btn ghost"
+            style={{ fontSize: "12px", padding: "6px 12px", minHeight: "34px" }}
+            onClick={onUpdateUsername}
+            title="Ubah Username Player"
+          >
+            <Icon name="user" size={14} /> Ganti Username
+          </button>
+        )}
         <button className="icon-btn notification" aria-label="Notifikasi">
           <Icon name="bell" size={19} />
           <i />
         </button>
-        <div className="xp">
-          <span>LVL 28</span>
-          <b>2,840 XP</b>
-        </div>
       </div>
     </header>
   )
@@ -375,18 +390,40 @@ function Status({
 }
 
 function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [tournaments, setTournaments] = useState<ApiTournament[]>([])
+  const [teams, setTeams] = useState<ApiTeamSummary[]>([])
+  const auth = getStoredAuth()
+
+  useEffect(() => {
+    if (auth.username) {
+      api.getProfileByUsername(auth.username).then((res) => {
+        if (res.ok && res.data) setProfile(res.data)
+      })
+    }
+    api.getTournaments().then((res) => {
+      if (res.ok && res.data) setTournaments(res.data)
+    })
+    api.getTeams().then((res) => {
+      if (res.ok && res.data) setTeams(res.data)
+    })
+  }, [auth.username])
+
+  const username = profile?.username || auth.username || "Player"
+  const mmr = profile?.mmr_point ?? 1000
+
   return (
     <div className="page dashboard-page">
       <section className="welcome-banner">
         <div className="banner-grid" />
         <div className="welcome-copy">
           <span className="eyebrow">
-            <i /> PLAYER HUB
+            <i /> PLAYER HUB {auth.role === "admin" && "(ADMIN)"}
           </span>
           <h2>
-            SELAMAT DATANG, <em>RAKA.</em>
+            SELAMAT DATANG, <em>{username.toUpperCase()}.</em>
           </h2>
-          <p>Siapkan strategi. Turnamen berikutnya menunggumu.</p>
+          <p>Kelola tim dan turnamen secara real-time langsung melalui Rust backend API.</p>
           <div className="banner-actions">
             <button
               className="btn primary"
@@ -400,25 +437,25 @@ function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
           </div>
         </div>
         <div className="rank-card">
-          <span>RANK MUSIM INI</span>
+          <span>MMR & RANKING</span>
           <div className="rank-emblem">
             <Icon name="shield" size={44} />
-            <b>III</b>
+            <b>{Math.floor(mmr / 500)}</b>
           </div>
-          <strong>DIAMOND III</strong>
-          <small>1,840 / 2,000 RP</small>
+          <strong>{mmr >= 2000 ? "MASTER" : mmr >= 1500 ? "DIAMOND" : "GOLD"} TIER</strong>
+          <small>{mmr} MMR Point</small>
           <div className="progress">
-            <i style={{ width: "82%" }} />
+            <i style={{ width: `${Math.min(100, (mmr / 2500) * 100)}%` }} />
           </div>
         </div>
       </section>
 
       <section className="stats-grid">
         {[
-          ["Turnamen Diikuti", "12", "+3 musim ini", "trophy"],
-          ["Total Kemenangan", "38", "Win rate 64%", "swords"],
-          ["Tim Aktif", "1", "NOVA STRIKE", "users"],
-          ["Poin Ranking", "1,840", "#284 regional", "bolt"],
+          ["Turnamen Aktif", String(tournaments.length), "Tersedia di Rust API", "trophy"],
+          ["Tim Terdaftar", String(teams.length), "Di seluruh liga", "users"],
+          ["Status Akun", auth.role === "admin" ? "ADMINISTRATOR" : "VERIFIED PLAYER", auth.username ? "Online" : "Guest", "shield"],
+          ["MMR Point", String(mmr), "#Regional Rank", "bolt"],
         ].map(([label, value, meta, icon], i) => (
           <article className="stat-card" key={label}>
             <div className={`stat-icon c${i}`}>
@@ -434,8 +471,8 @@ function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
       <div className="dashboard-columns">
         <section>
           <SectionTitle
-            kicker="UP NEXT"
-            title="Turnamen Mendatang"
+            kicker="REAL-TIME"
+            title="Turnamen Terdaftar di API"
             action={
               <button
                 className="text-btn"
@@ -445,57 +482,43 @@ function Dashboard({ setPage }: { setPage: (p: Page) => void }) {
               </button>
             }
           />
-          <TournamentRow
-            image={photos.arena}
-            title="NEXUS CHAMPIONSHIP"
-            game="Valorant • 5v5"
-            date="18 JUN"
-            status="Tim terdaftar"
-            onClick={() => setPage("tournament")}
-          />
-          <TournamentRow
-            image={photos.neon}
-            title="MIDNIGHT BRAWL #12"
-            game="Mobile Legends • 5v5"
-            date="24 JUN"
-            status="Pendaftaran buka"
-            onClick={() => setPage("tournament")}
-          />
+          {tournaments.length > 0 ? (
+            tournaments.slice(0, 3).map((t) => (
+              <TournamentRow
+                key={t.id}
+                image={photos.arena}
+                title={t.name}
+                game={`Max ${t.total_slots} Tim • ${t.available_slots} Slot Tersisa`}
+                date={`ID #${t.id}`}
+                status={t.status || "open"}
+                onClick={() => setPage("tournament")}
+              />
+            ))
+          ) : (
+            <div className="empty-state" style={{ padding: "20px" }}>
+              <p>Belum ada turnamen di database Rust. Buat baru di halaman Admin.</p>
+            </div>
+          )}
         </section>
         <section>
-          <SectionTitle kicker="ACTIVITY" title="Aktivitas Terbaru" />
+          <SectionTitle kicker="TEAMS DIRECTORY" title="Daftar Tim Terdaftar" />
           <div className="activity-card">
-            {[
-              [
-                "check",
-                "Pendaftaran berhasil",
-                "NOVA STRIKE terdaftar di Nexus Championship",
-                "12 menit",
-              ],
-              [
-                "crown",
-                "Kapten baru",
-                "Kamu ditunjuk sebagai kapten tim",
-                "2 jam",
-              ],
-              [
-                "calendar",
-                "Jadwal diperbarui",
-                "Match #A-204 dipindahkan ke 19:30",
-                "Kemarin",
-              ],
-            ].map(([icon, title, desc, time], i) => (
-              <div className="activity" key={title}>
-                <span className={`activity-icon a${i}`}>
-                  <Icon name={icon as IconName} size={17} />
-                </span>
-                <div>
-                  <strong>{title}</strong>
-                  <p>{desc}</p>
-                  <small>{time}</small>
+            {teams.length > 0 ? (
+              teams.slice(0, 4).map((tm, i) => (
+                <div className="activity" key={tm.id}>
+                  <span className={`activity-icon a${i % 3}`}>
+                    <Icon name="users" size={17} />
+                  </span>
+                  <div>
+                    <strong>{tm.name}</strong>
+                    <p>Kapten: {tm.captain_username} • {tm.member_count} Anggota</p>
+                    <small>ID #{tm.id}</small>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p style={{ padding: "20px", color: "var(--muted)" }}>Belum ada tim yang terdaftar.</p>
+            )}
           </div>
         </section>
       </div>
@@ -537,191 +560,353 @@ function TournamentRow({
   )
 }
 
-type Member = {
-  name: string
-  tag: string
-  role: string
-  initials: string
-  captain?: boolean
-  status?: string
-}
-const initialMembers: Member[] = [
-  {
-    name: "RakaXtreme",
-    tag: "#RX28",
-    role: "Duelist",
-    initials: "RX",
-    captain: true,
-  },
-  { name: "SoraByte", tag: "#SB11", role: "Controller", initials: "SB" },
-  { name: "Vexel", tag: "#VX07", role: "Sentinel", initials: "VX" },
-  { name: "KiroZen", tag: "#KZ99", role: "Initiator", initials: "KZ" },
-  { name: "Nami.exe", tag: "#NM04", role: "Flex", initials: "NM" },
-]
+function ProfilePage({
+  setPage,
+  toast,
+  onUpdateUsername,
+}: {
+  setPage: (p: Page) => void
+  toast: (s: string) => void
+  onUpdateUsername: () => void
+}) {
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [myTeams, setMyTeams] = useState<ApiTeamSummary[]>([])
+  const [allTeams, setAllTeams] = useState<ApiTeamSummary[]>([])
+  const [loading, setLoading] = useState(true)
+  const auth = getStoredAuth()
 
-type PlayerTeam = {
-  id: string
-  name: string
-  game: string
-  region: string
-  created: string
-  wins: number
-  losses: number
-  rank: string
-  capacity: number
-  code: string
-  isCaptain: boolean
-  recruitment: "Terbuka" | "Tertutup"
-}
+  useEffect(() => {
+    if (auth.username) {
+      api.getProfileByUsername(auth.username).then((res) => {
+        if (res.ok && res.data) setProfile(res.data)
+        setLoading(false)
+      })
+    } else {
+      setLoading(false)
+    }
 
-const initialPlayerTeams: PlayerTeam[] = [
-  {
-    id: "nova",
-    name: "NOVA STRIKE",
-    game: "VALORANT",
-    region: "Asia Pacific",
-    created: "14 Jan 2025",
-    wins: 24,
-    losses: 9,
-    rank: "#84",
-    capacity: 5,
-    code: "NVST-28AX",
-    isCaptain: true,
-    recruitment: "Tertutup",
-  },
-  {
-    id: "garuda",
-    name: "GARUDA FORCE",
-    game: "MOBILE LEGENDS",
-    region: "Indonesia",
-    created: "02 Mar 2025",
-    wins: 18,
-    losses: 7,
-    rank: "#126",
-    capacity: 5,
-    code: "GRDA-71ML",
-    isCaptain: false,
-    recruitment: "Terbuka",
-  },
-  {
-    id: "skyward",
-    name: "SKYWARD UNIT",
-    game: "APEX LEGENDS",
-    region: "Asia Pacific",
-    created: "21 Apr 2025",
-    wins: 11,
-    losses: 5,
-    rank: "#203",
-    capacity: 3,
-    code: "SKYW-09AP",
-    isCaptain: true,
-    recruitment: "Terbuka",
-  },
-]
+    api.getTeams().then((res) => {
+      if (res.ok && res.data) {
+        setAllTeams(res.data)
+        setMyTeams(res.data.filter((t) => t.captain_username === auth.username))
+      }
+    })
+  }, [auth.username])
 
-const initialTeamRosters: Record<string, Member[]> = {
-  nova: initialMembers,
-  garuda: [
-    {
-      name: "Mikael",
-      tag: "#MK12",
-      role: "Jungler",
-      initials: "MK",
-      captain: true,
-    },
-    { name: "RakaXtreme", tag: "#RX28", role: "Gold Lane", initials: "RX" },
-    { name: "Sena", tag: "#SN08", role: "Mid Lane", initials: "SN" },
-    { name: "Arka", tag: "#AR17", role: "Roamer", initials: "AR" },
-  ],
-  skyward: [
-    {
-      name: "RakaXtreme",
-      tag: "#RX28",
-      role: "Assault",
-      initials: "RX",
-      captain: true,
-    },
-    { name: "NovaRay", tag: "#NR52", role: "Support", initials: "NR" },
-    { name: "Kaze", tag: "#KZ18", role: "Skirmisher", initials: "KZ" },
-  ],
+  if (!auth.username) {
+    return (
+      <div className="page" style={{ textAlign: "center", paddingTop: "80px" }}>
+        <div style={{ maxWidth: "440px", margin: "auto", background: "var(--panel)", padding: "32px", border: "1px solid var(--line)" }}>
+          <Icon name="lock" size={44} />
+          <h2 style={{ margin: "16px 0 8px" }}>Belum Masuk</h2>
+          <p style={{ color: "var(--muted)", marginBottom: "20px" }}>
+            Silakan login untuk melihat dashboard profil dan riwayat kompetisimu.
+          </p>
+          <button className="btn primary full" onClick={() => setPage("login")}>
+            Masuk ke Arena
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const mmr = profile?.mmr_point ?? 1000
+  const tier = mmr >= 2200 ? "CHALLENGER" : mmr >= 1900 ? "MASTER" : mmr >= 1500 ? "DIAMOND" : "GOLD"
+
+  return (
+    <div className="page profile-page">
+      <section className="welcome-banner" style={{ minHeight: "220px", marginBottom: "28px" }}>
+        <div className="banner-grid" />
+        <div className="welcome-copy">
+          <span className="eyebrow">
+            <i /> OFFICIAL PROFILE CARD
+          </span>
+          <h2>
+            {profile?.username || auth.username} <em>#{profile?.id || "ID"}</em>
+          </h2>
+          <p>
+            Role: <strong>{(auth.role || "user").toUpperCase()}</strong> • Status: Terverifikasi di Database
+          </p>
+          <div className="banner-actions" style={{ marginTop: "18px" }}>
+            <button className="btn primary" onClick={onUpdateUsername}>
+              <Icon name="user" size={16} /> Ubah Username
+            </button>
+            <button className="btn ghost" onClick={() => setPage("team")}>
+              Kelola Tim Saya
+            </button>
+          </div>
+        </div>
+        <div className="rank-card">
+          <span>RANK & TIER</span>
+          <div className="rank-emblem">
+            <Icon name="shield" size={44} />
+            <b>{Math.floor(mmr / 500)}</b>
+          </div>
+          <strong>{tier} TIER</strong>
+          <small>{mmr} Rating Points (MMR)</small>
+          <div className="progress">
+            <i style={{ width: `${Math.min(100, (mmr / 2500) * 100)}%` }} />
+          </div>
+        </div>
+      </section>
+
+      <section className="stats-grid">
+        {[
+          ["Player ID", `#${profile?.id || "-"}`, "Database Primary Key", "shield"],
+          ["Rating MMR", `${mmr} PTS`, "Poin Kompetitif", "bolt"],
+          ["Tim Dipimpin", `${myTeams.length} Tim`, "Sebagai Kapten", "crown"],
+          ["Akses Role", (auth.role || "user").toUpperCase(), "Hak akses sistem", "users"],
+        ].map(([label, value, meta, icon], i) => (
+          <article className="stat-card" key={label}>
+            <div className={`stat-icon c${i}`}>
+              <Icon name={icon as IconName} />
+            </div>
+            <span>{label}</span>
+            <strong>{value}</strong>
+            <small>{meta}</small>
+          </article>
+        ))}
+      </section>
+
+      <div className="dashboard-columns" style={{ marginTop: "32px" }}>
+        <section>
+          <SectionTitle kicker="CAPTAINCY" title="Tim yang Kamu Pimpin" />
+          <div className="roster-list" style={{ marginTop: "14px" }}>
+            {myTeams.length > 0 ? (
+              myTeams.map((t, idx) => (
+                <article className="roster-row" key={t.id} style={{ cursor: "pointer" }} onClick={() => setPage("team")}>
+                  <div className={`avatar large av${idx % 4}`}>
+                    {t.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="member-name">
+                    <strong>{t.name}</strong>
+                    <small>ID #{t.id} • {t.member_count} Anggota</small>
+                  </div>
+                  <div className="member-role">
+                    <span>ROLE</span>
+                    <strong>KAPTEN</strong>
+                  </div>
+                  <Status tone="purple">Kapten</Status>
+                </article>
+              ))
+            ) : (
+              <p style={{ padding: "20px", color: "var(--muted)" }}>
+                Kamu belum memimpin tim. Buat tim baru di menu "Tim Saya".
+              </p>
+            )}
+          </div>
+        </section>
+
+        <aside>
+          <SectionTitle kicker="SECURITY" title="Informasi Keamanan Akun" />
+          <div className="info-card">
+            <div className="info-row">
+              <span>Enkripsi Password</span>
+              <b>Argon2id Safe</b>
+            </div>
+            <div className="info-row">
+              <span>Otorisasi Session</span>
+              <b>JWT Bearer Token</b>
+            </div>
+            <div className="info-row">
+              <span>Masa Berlaku Token</span>
+              <b>1 Jam (3600s)</b>
+            </div>
+            <div className="info-row">
+              <span>Status Akun</span>
+              <Status tone="green">Aktif & Aman</Status>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  )
 }
 
 function TeamPage({ toast }: { toast: (s: string) => void }) {
-  const [teams, setTeams] = useState(initialPlayerTeams)
-  const [teamRosters, setTeamRosters] = useState(initialTeamRosters)
-  const [selectedTeamId, setSelectedTeamId] = useState<string | null>(null)
+  const [allTeams, setAllTeams] = useState<ApiTeamSummary[]>([])
+  const [joinedTeams, setJoinedTeams] = useState<ApiTeamSummary[]>([])
+  const [selectedTeamName, setSelectedTeamName] = useState<string | null>(null)
+  const [teamDetail, setTeamDetail] = useState<ApiTeamDetail | null>(null)
   const [joinOpen, setJoinOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
-  const selectedTeam = teams.find((team) => team.id === selectedTeamId)
-  const members = selectedTeamId ? (teamRosters[selectedTeamId] ?? []) : []
+  const [teamNameInput, setTeamNameInput] = useState("")
+  const [targetTeamJoin, setTargetTeamJoin] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [loadingJoined, setLoadingJoined] = useState(true)
+  const auth = getStoredAuth()
 
-  const setMembers = (nextMembers: Member[]) => {
-    if (!selectedTeamId) return
-    setTeamRosters({ ...teamRosters, [selectedTeamId]: nextMembers })
-  }
+  const loadTeams = async () => {
+    setLoadingJoined(true)
+    const res = await api.getTeams()
+    if (res.ok && res.data) {
+      setAllTeams(res.data)
+      if (!auth.username) {
+        setJoinedTeams([])
+        setLoadingJoined(false)
+        return
+      }
 
-  const makeCaptain = (index: number) => {
-    setMembers(members.map((m, i) => ({ ...m, captain: i === index })))
-    toast(`${members[index].name} sekarang menjadi kapten.`)
-  }
-  const remove = (index: number) => {
-    toast(`${members[index].name} dihapus dari tim.`)
-    setMembers(members.filter((_, i) => i !== index))
-  }
-
-  const createTeam = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    const data = new FormData(event.currentTarget)
-    const name = String(data.get("name"))
-    const game = String(data.get("game"))
-    const id = `team-${teams.length + 1}`
-    const capacity = game === "APEX LEGENDS" ? 3 : 5
-    const newTeam: PlayerTeam = {
-      id,
-      name,
-      game,
-      region: "Indonesia",
-      created: "Hari ini",
-      wins: 0,
-      losses: 0,
-      rank: "Unranked",
-      capacity,
-      code: `${name.slice(0, 4).toUpperCase()}-${teams.length + 28}`,
-      isCaptain: true,
-      recruitment: "Terbuka",
+      // Cari tim-tim di mana user ini adalah anggota (baik kapten maupun member aktif)
+      const joined: ApiTeamSummary[] = []
+      await Promise.all(
+        res.data.map(async (t) => {
+          // Jika dia kaptennya, pasti anggota
+          if (t.captain_username === auth.username) {
+            joined.push(t)
+            return
+          }
+          // Periksa detail tim untuk memastikan user ada di daftar members
+          const detailRes = await api.getTeamProfile(t.name)
+          if (detailRes.ok && detailRes.data) {
+            const isMember = detailRes.data.members.some(
+              (m) => m.username === auth.username
+            )
+            if (isMember) {
+              joined.push(t)
+            }
+          }
+        })
+      )
+      setJoinedTeams(joined)
     }
-    setTeams([...teams, newTeam])
-    setTeamRosters({
-      ...teamRosters,
-      [id]: [
-        {
-          name: "RakaXtreme",
-          tag: "#RX28",
-          role: "Flex",
-          initials: "RX",
-          captain: true,
-        },
-      ],
-    })
-    setCreateOpen(false)
-    setSelectedTeamId(id)
-    toast(`${name} berhasil dibuat.`)
+    setLoadingJoined(false)
   }
 
-  if (!selectedTeam) {
+  useEffect(() => {
+    loadTeams()
+  }, [auth.username])
+
+  useEffect(() => {
+    if (selectedTeamName) {
+      api.getTeamProfile(selectedTeamName).then((res) => {
+        if (res.ok && res.data) setTeamDetail(res.data)
+      })
+    } else {
+      setTeamDetail(null)
+    }
+  }, [selectedTeamName])
+
+  const handleCreateTeam = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!auth.username) {
+      toast("Silakan login terlebih dahulu untuk membuat tim.")
+      return
+    }
+    setLoading(true)
+    const res = await api.createTeam(teamNameInput, auth.username)
+    setLoading(false)
+    if (res.ok) {
+      toast(`Tim "${teamNameInput}" berhasil dibuat!`)
+      setCreateOpen(false)
+      setTeamNameInput("")
+      loadTeams()
+      setSelectedTeamName(teamNameInput)
+    } else {
+      toast(res.message || "Gagal membuat tim")
+    }
+  }
+
+  const handleJoinTeam = async (teamName: string) => {
+    if (!auth.username) {
+      toast("Silakan login terlebih dahulu untuk bergabung ke tim.")
+      return
+    }
+    setLoading(true)
+    const res = await api.joinTeam(teamName)
+    setLoading(false)
+    if (res.ok) {
+      toast(`Berhasil bergabung ke tim ${teamName}!`)
+      setJoinOpen(false)
+      loadTeams()
+      if (selectedTeamName === teamName) {
+        api.getTeamProfile(teamName).then((r) => r.ok && r.data && setTeamDetail(r.data))
+      }
+    } else {
+      toast(res.message || "Gagal bergabung ke tim")
+    }
+  }
+
+  const handleLeaveTeam = async (teamName: string) => {
+    if (isCaptain) {
+      const eligibleMembers = teamDetail?.members.filter((m) => m.username !== auth.username) || []
+      if (eligibleMembers.length === 0) {
+        if (confirm(`Sebagai satu-satunya anggota dan kapten, keluar akan membubarkan tim ${teamName}. Lanjutkan bubarkan tim?`)) {
+          return handleDeleteTeam(teamName)
+        }
+        return
+      }
+      const newCap = prompt(
+        `Sebagai kapten, Anda wajib menentukan kapten baru sebelum keluar.\nPilih salah satu anggota:\n${eligibleMembers.map((m) => m.username).join(", ")}`
+      )
+      if (!newCap) return
+      const res = await api.leaveTeam(teamName, newCap.trim())
+      if (res.ok) {
+        toast(`Berhasil keluar dari tim ${teamName}. Kapten baru: ${newCap}`)
+        loadTeams()
+        setSelectedTeamName(null)
+      } else {
+        toast(res.message || "Gagal keluar dari tim")
+      }
+      return
+    }
+
+    if (!confirm(`Yakin ingin keluar dari tim ${teamName}?`)) return
+    const res = await api.leaveTeam(teamName)
+    if (res.ok) {
+      toast(`Berhasil keluar dari tim ${teamName}`)
+      loadTeams()
+      setSelectedTeamName(null)
+    } else {
+      toast(res.message || "Gagal keluar dari tim")
+    }
+  }
+
+  const handleDeleteTeam = async (teamName: string) => {
+    if (!confirm(`Yakin ingin membubarkan tim ${teamName}?`)) return
+    const res = await api.deleteTeam(teamName)
+    if (res.ok) {
+      toast(`Tim ${teamName} berhasil dibubarkan`)
+      loadTeams()
+      setSelectedTeamName(null)
+    } else {
+      toast(res.message || "Hanya kapten yang dapat membubarkan tim")
+    }
+  }
+
+  const handleTransferCaptain = async (teamName: string, newCaptain: string) => {
+    const res = await api.transferCaptain(teamName, newCaptain)
+    if (res.ok) {
+      toast(`Kapten tim berhasil dipindahkan ke ${newCaptain}`)
+      api.getTeamProfile(teamName).then((r) => r.ok && r.data && setTeamDetail(r.data))
+    } else {
+      toast(res.message || "Gagal memindahkan kapten")
+    }
+  }
+
+  const handleRemoveMember = async (teamName: string, memberUsername: string) => {
+    const res = await api.removeTeamMember(teamName, memberUsername)
+    if (res.ok) {
+      toast(`${memberUsername} berhasil dikeluarkan dari tim`)
+      api.getTeamProfile(teamName).then((r) => r.ok && r.data && setTeamDetail(r.data))
+    } else {
+      toast(res.message || "Gagal mengeluarkan anggota")
+    }
+  }
+
+  if (!selectedTeamName || !teamDetail) {
     return (
       <div className="page team-hub">
         <section className="team-hub-head">
           <div>
             <span className="eyebrow">
-              <i /> YOUR SQUADS
+              <i /> MY SQUADS
             </span>
             <h2>
-              SEMUA TIMMU, <em>SATU TEMPAT.</em>
+              TIM <em>SAYA.</em>
             </h2>
             <p>
-              Berpindah roster, pantau performa, dan kelola tim untuk setiap
-              game yang kamu mainkan.
+              Daftar tim esport di mana Anda terdaftar sebagai anggota atau kapten tim.
             </p>
           </div>
           <div className="team-hub-actions">
@@ -735,112 +920,136 @@ function TeamPage({ toast }: { toast: (s: string) => void }) {
         </section>
         <div className="team-hub-summary">
           <div>
-            <strong>{teams.length}</strong>
-            <span>TIM AKTIF</span>
+            <strong>{joinedTeams.length}</strong>
+            <span>TIM YANG DIIKUTI</span>
           </div>
           <div>
-            <strong>{teams.filter((team) => team.isCaptain).length}</strong>
+            <strong>{joinedTeams.filter((t) => t.captain_username === auth.username).length}</strong>
             <span>SEBAGAI KAPTEN</span>
           </div>
           <div>
-            <strong>
-              {teams.reduce((total, team) => total + team.wins, 0)}
-            </strong>
-            <span>TOTAL MENANG</span>
+            <strong>5</strong>
+            <span>MAX ROSTER</span>
           </div>
         </div>
-        <SectionTitle kicker="MY TEAMS" title="Tim yang Kamu Ikuti" />
-        <div className="player-team-grid">
-          {teams.map((team, index) => {
-            const roster = teamRosters[team.id] ?? []
-            return (
-              <button
-                className="player-team-card"
-                key={team.id}
-                onClick={() => setSelectedTeamId(team.id)}
-              >
-                <div className={`player-team-cover team-gradient-${index % 3}`}>
-                  <span className="player-team-mark">
-                    {team.name.slice(0, 2)}
-                  </span>
-                  <Status tone={team.isCaptain ? "purple" : "gray"}>
-                    {team.isCaptain ? "Kapten" : "Anggota"}
-                  </Status>
-                </div>
-                <div className="player-team-body">
-                  <span>{team.game}</span>
-                  <h3>{team.name}</h3>
-                  <p>
-                    {team.region} · {roster.length}/{team.capacity} pemain
-                  </p>
-                  <div className="team-avatar-stack">
-                    {roster.slice(0, 5).map((member) => (
-                      <span key={member.tag}>{member.initials}</span>
-                    ))}
-                    {roster.length < team.capacity && (
-                      <span className="empty-slot">
-                        +{team.capacity - roster.length}
-                      </span>
-                    )}
+        <SectionTitle kicker="JOINED TEAMS" title="Tim yang Kamu Masuki" />
+        {loadingJoined ? (
+          <p style={{ padding: "20px", color: "var(--muted)" }}>Memuat tim yang kamu ikuti...</p>
+        ) : joinedTeams.length > 0 ? (
+          <div className="player-team-grid">
+            {joinedTeams.map((team, index) => {
+              const isMyTeam = team.captain_username === auth.username
+              return (
+                <button
+                  className="player-team-card"
+                  key={team.id}
+                  onClick={() => setSelectedTeamName(team.name)}
+                >
+                  <div className={`player-team-cover team-gradient-${index % 3}`}>
+                    <span className="player-team-mark">
+                      {team.name.slice(0, 2).toUpperCase()}
+                    </span>
+                    <Status tone={isMyTeam ? "purple" : "green"}>
+                      {isMyTeam ? "Kapten" : "Anggota"}
+                    </Status>
                   </div>
-                  <div className="player-team-stats">
-                    <div>
-                      <strong>{team.wins}</strong>
-                      <span>MENANG</span>
+                  <div className="player-team-body">
+                    <span>ID #{team.id}</span>
+                    <h3>{team.name}</h3>
+                    <p>Kapten: {team.captain_username}</p>
+                    <div className="team-avatar-stack">
+                      <span>{team.captain_username.slice(0, 2).toUpperCase()}</span>
+                      {team.member_count > 1 && (
+                        <span className="empty-slot">+{team.member_count - 1}</span>
+                      )}
                     </div>
-                    <div>
-                      <strong>{team.losses}</strong>
-                      <span>KALAH</span>
+                    <div className="player-team-stats">
+                      <div>
+                        <strong>{team.member_count}</strong>
+                        <span>ANGGOTA</span>
+                      </div>
+                      <div>
+                        <strong>5</strong>
+                        <span>SLOT</span>
+                      </div>
+                      <Icon name="arrow" size={18} />
                     </div>
-                    <div>
-                      <strong>{team.rank}</strong>
-                      <span>RANK</span>
-                    </div>
-                    <Icon name="arrow" size={18} />
                   </div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
+                </button>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="empty-state">
+            <div>
+              <Icon name="users" size={32} />
+            </div>
+            <h3>Kamu belum bergabung ke tim manapun</h3>
+            <p>Gunakan tombol di atas untuk membuat tim baru atau bergabung ke tim yang sudah ada.</p>
+          </div>
+        )}
+
         {joinOpen && (
           <Modal title="Gabung ke Tim" close={() => setJoinOpen(false)}>
             <p className="modal-copy">
-              Masukkan kode undangan dari kapten tim untuk menambahkannya ke
-              koleksi timmu.
+              Ketik nama tim yang ingin Anda ikuti. Sistem akan mencocokkan nama tim yang terdaftar di database.
             </p>
-            <label className="field-label">KODE UNDANGAN</label>
-            <input className="input" placeholder="Contoh: NVST-28AX" />
+            <label className="field-label">NAMA TIM</label>
+            <input
+              className="input"
+              value={targetTeamJoin}
+              onChange={(e) => setTargetTeamJoin(e.target.value)}
+              placeholder="Ketik nama tim (contoh: PHOENIX FIVE, NOVA STRIKE...)"
+              autoFocus
+            />
+            {targetTeamJoin && (
+              <div style={{ margin: "10px 0", maxHeight: "140px", overflowY: "auto", border: "1px solid var(--line)", borderRadius: "4px" }}>
+                {allTeams
+                  .filter((t) => t.name.toLowerCase().includes(targetTeamJoin.toLowerCase()))
+                  .map((t) => (
+                    <div
+                      key={t.id}
+                      onClick={() => setTargetTeamJoin(t.name)}
+                      style={{
+                        padding: "8px 12px",
+                        cursor: "pointer",
+                        borderBottom: "1px solid var(--line)",
+                        fontSize: "12px",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        background: targetTeamJoin.toLowerCase() === t.name.toLowerCase() ? "rgba(199,241,53,0.12)" : "transparent",
+                      }}
+                    >
+                      <strong>{t.name}</strong>
+                      <span style={{ color: "var(--muted)" }}>Kapten: {t.captain_username}</span>
+                    </div>
+                  ))}
+              </div>
+            )}
             <button
               className="btn primary full"
-              onClick={() => {
-                setJoinOpen(false)
-                toast("Permintaan bergabung berhasil dikirim.")
-              }}
+              disabled={!targetTeamJoin.trim() || loading}
+              style={{ marginTop: "16px" }}
+              onClick={() => handleJoinTeam(targetTeamJoin.trim())}
             >
-              Kirim Permintaan <Icon name="arrow" size={17} />
+              {loading ? "Memproses..." : "Gabung ke Tim"} <Icon name="arrow" size={17} />
             </button>
           </Modal>
         )}
+
         {createOpen && (
           <Modal title="Buat Tim Baru" close={() => setCreateOpen(false)}>
-            <form onSubmit={createTeam}>
+            <form onSubmit={handleCreateTeam}>
               <label className="field-label">NAMA TIM</label>
               <input
                 className="input"
-                name="name"
                 required
-                placeholder="Contoh: Crimson Nova"
+                value={teamNameInput}
+                onChange={(e) => setTeamNameInput(e.target.value)}
+                placeholder="Contoh: GARUDA CYBER"
               />
-              <label className="field-label">GAME UTAMA</label>
-              <select className="input" name="game">
-                <option>VALORANT</option>
-                <option>MOBILE LEGENDS</option>
-                <option>APEX LEGENDS</option>
-                <option>PUBG MOBILE</option>
-              </select>
-              <button className="btn primary full" type="submit">
-                Buat Tim <Icon name="arrow" size={17} />
+              <button className="btn primary full" type="submit" disabled={loading} style={{ marginTop: "16px" }}>
+                {loading ? "Membuat..." : "Buat Tim Sekarang"} <Icon name="arrow" size={17} />
               </button>
             </form>
           </Modal>
@@ -849,11 +1058,17 @@ function TeamPage({ toast }: { toast: (s: string) => void }) {
     )
   }
 
+  const isCaptain = teamDetail.members.some(
+    (m) => m.username === auth.username && teamDetail.captain_id
+  ) || allTeams.find((t) => t.name === teamDetail.name)?.captain_username === auth.username
+
+  const isMember = teamDetail.members.some((m) => m.username === auth.username)
+
   return (
     <div className="page">
       <button
         className="back-to-catalog"
-        onClick={() => setSelectedTeamId(null)}
+        onClick={() => setSelectedTeamName(null)}
       >
         <Icon name="arrow" size={17} /> Kembali ke Semua Tim
       </button>
@@ -865,244 +1080,136 @@ function TeamPage({ toast }: { toast: (s: string) => void }) {
           <span className="eyebrow">
             <i /> ACTIVE ROSTER
           </span>
-          <h2>{selectedTeam.name}</h2>
+          <h2>{teamDetail.name}</h2>
           <p>
-            {selectedTeam.game} • {selectedTeam.region} <span>•</span> Dibentuk{" "}
-            {selectedTeam.created}
+            ID Tim #{teamDetail.id} • Total {teamDetail.members.length} Pemain
           </p>
         </div>
         <div className="team-record">
           <div>
-            <b>{selectedTeam.wins}</b>
-            <span>MENANG</span>
+            <b>{teamDetail.members.length}</b>
+            <span>ANGGOTA</span>
           </div>
           <div>
-            <b>{selectedTeam.losses}</b>
-            <span>KALAH</span>
-          </div>
-          <div>
-            <b>{selectedTeam.rank}</b>
-            <span>RANK</span>
+            <b>5</b>
+            <span>MAX SLOT</span>
           </div>
         </div>
-        <button
-          className="btn primary"
-          onClick={() => toast(`Tautan undangan ${selectedTeam.name} disalin.`)}
-        >
-          <Icon name="plus" size={17} /> Undang Anggota
-        </button>
+        {!isMember && (
+          <button
+            className="btn primary"
+            onClick={() => handleJoinTeam(teamDetail.name)}
+          >
+            <Icon name="plus" size={17} /> Gabung Tim Ini
+          </button>
+        )}
       </section>
 
       <div className="team-layout">
         <section>
           <SectionTitle
-            kicker="SQUAD"
-            title={`Roster Utama (${members.length}/${selectedTeam.capacity})`}
+            kicker="ROSTER"
+            title={`Anggota Tim (${teamDetail.members.length}/5)`}
             action={
               <span className="permission">
                 <Icon name="shield" size={14} />{" "}
-                {selectedTeam.isCaptain ? "Hak akses kapten" : "Akses anggota"}
+                {isCaptain ? "Akses Kapten Aktif" : "Akses Anggota"}
               </span>
             }
           />
           <div className="roster-list">
-            {members.map((member, index) => (
-              <article className="roster-row" key={member.tag}>
-                <div className={`avatar large av${index}`}>
-                  {member.initials}
-                </div>
-                <div className="member-name">
-                  <strong>
-                    {member.name}
-                    {member.captain && (
-                      <span className="captain">
-                        <Icon name="crown" size={13} /> KAPTEN
-                      </span>
-                    )}
-                  </strong>
-                  <small>{member.tag}</small>
-                </div>
-                <div className="member-role">
-                  <span>ROLE</span>
-                  <strong>{member.role}</strong>
-                </div>
-                <Status>Online</Status>
-                {selectedTeam.isCaptain && !member.captain && (
-                  <div className="row-actions">
-                    <button
-                      className="small-action"
-                      onClick={() => makeCaptain(index)}
-                    >
-                      <Icon name="crown" size={15} /> Pindah Kapten
-                    </button>
-                    <button
-                      className="danger-icon"
-                      onClick={() => remove(index)}
-                      aria-label={`Hapus ${member.name}`}
-                    >
-                      <Icon name="trash" size={17} />
-                    </button>
+            {teamDetail.members.map((member, index) => {
+              const isMemberCaptain =
+                allTeams.find((t) => t.name === teamDetail.name)?.captain_username === member.username
+              return (
+                <article className="roster-row" key={member.username}>
+                  <div className={`avatar large av${index % 4}`}>
+                    {member.username.slice(0, 2).toUpperCase()}
                   </div>
-                )}
-              </article>
-            ))}
+                  <div className="member-name">
+                    <strong>
+                      {member.username}
+                      {isMemberCaptain && (
+                        <span className="captain">
+                          <Icon name="crown" size={13} /> KAPTEN
+                        </span>
+                      )}
+                    </strong>
+                    <small>Status: {member.status}</small>
+                  </div>
+                  <div className="member-role">
+                    <span>ROLE</span>
+                    <strong>{isMemberCaptain ? "Team Captain" : "Player"}</strong>
+                  </div>
+                  <Status>{member.status}</Status>
+                  {isCaptain && !isMemberCaptain && (
+                    <div className="row-actions">
+                      <button
+                        className="small-action"
+                        onClick={() => handleTransferCaptain(teamDetail.name, member.username)}
+                      >
+                        <Icon name="crown" size={15} /> Pindah Kapten
+                      </button>
+                      <button
+                        className="danger-icon"
+                        onClick={() => handleRemoveMember(teamDetail.name, member.username)}
+                        aria-label={`Hapus ${member.username}`}
+                      >
+                        <Icon name="trash" size={17} />
+                      </button>
+                    </div>
+                  )}
+                </article>
+              )
+            })}
           </div>
         </section>
         <aside>
-          <SectionTitle kicker="TEAM INFO" title="Informasi Tim" />
+          <SectionTitle kicker="TEAM ACTIONS" title="Tindakan Tim" />
           <div className="info-card">
             <div className="info-row">
-              <span>Game utama</span>
-              <b>{selectedTeam.game}</b>
+              <span>Nama Tim</span>
+              <b>{teamDetail.name}</b>
             </div>
             <div className="info-row">
-              <span>Region</span>
-              <b>{selectedTeam.region}</b>
+              <span>ID Backend</span>
+              <b>#{teamDetail.id}</b>
             </div>
             <div className="info-row">
-              <span>Bahasa</span>
-              <b>Indonesia</b>
-            </div>
-            <div className="info-row">
-              <span>Status rekrutmen</span>
-              <Status
-                tone={
-                  selectedTeam.recruitment === "Terbuka" ? "green" : "orange"
-                }
-              >
-                {selectedTeam.recruitment}
-              </Status>
-            </div>
-            <hr />
-            <label>KODE UNDANGAN</label>
-            <div className="invite-code">
-              <code>{selectedTeam.code}</code>
-              <button
-                onClick={() =>
-                  toast(`Kode undangan ${selectedTeam.name} disalin.`)
-                }
-              >
-                SALIN
-              </button>
+              <span>Status</span>
+              <Status tone="green">Aktif di API</Status>
             </div>
           </div>
-          <div className="danger-zone">
+          <div className="danger-zone" style={{ marginTop: "20px" }}>
             <div>
               <Icon name="shield" />
-              <strong>
-                {selectedTeam.isCaptain ? "Zona Kapten" : "Keanggotaan"}
-              </strong>
+              <strong>{isCaptain ? "Zona Kapten" : "Zona Anggota"}</strong>
               <p>
-                {selectedTeam.isCaptain
-                  ? "Aksi berikut hanya dapat dilakukan oleh kapten tim."
+                {isCaptain
+                  ? "Sebagai kapten, kamu dapat membubarkan tim atau keluar setelah transfer kapten."
                   : "Kamu dapat keluar dari tim ini kapan saja."}
               </p>
             </div>
-            <button
-              onClick={() =>
-                toast(
-                  selectedTeam.isCaptain
-                    ? "Permintaan bubarkan tim perlu konfirmasi."
-                    : `Permintaan keluar dari ${selectedTeam.name} perlu konfirmasi.`,
-                )
-              }
-            >
-              {selectedTeam.isCaptain ? "Bubarkan Tim" : "Keluar dari Tim"}
-            </button>
+            {isCaptain ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+                <button onClick={() => handleLeaveTeam(teamDetail.name)}>
+                  Keluar dari Tim (Pindah Kapten)
+                </button>
+                <button onClick={() => handleDeleteTeam(teamDetail.name)} style={{ background: "rgba(255, 118, 87, 0.2)", borderColor: "var(--orange)", color: "var(--orange)" }}>
+                  Bubarkan Tim
+                </button>
+              </div>
+            ) : isMember ? (
+              <button onClick={() => handleLeaveTeam(teamDetail.name)}>
+                Keluar dari Tim
+              </button>
+            ) : null}
           </div>
         </aside>
       </div>
     </div>
   )
 }
-
-type PlayerTournament = {
-  id: string
-  title: string
-  game: string
-  format: string
-  date: string
-  prize: string
-  image: string
-  status: "Pendaftaran Dibuka" | "Segera Hadir" | "Berlangsung"
-  teams: number
-  capacity: number
-}
-
-const playerTournaments: PlayerTournament[] = [
-  {
-    id: "nexus",
-    title: "Nexus Championship",
-    game: "VALORANT",
-    format: "5v5 · PC",
-    date: "18–22 JUN 2025",
-    prize: "IDR 50.000.000",
-    image: photos.arena,
-    status: "Pendaftaran Dibuka",
-    teams: 24,
-    capacity: 32,
-  },
-  {
-    id: "midnight",
-    title: "Midnight Brawl #12",
-    game: "MOBILE LEGENDS",
-    format: "5v5 · Mobile",
-    date: "24–26 JUN 2025",
-    prize: "IDR 25.000.000",
-    image: photos.neon,
-    status: "Pendaftaran Dibuka",
-    teams: 12,
-    capacity: 16,
-  },
-  {
-    id: "apex",
-    title: "Apex Sunday Series",
-    game: "APEX LEGENDS",
-    format: "Trio · PC",
-    date: "29 JUN 2025",
-    prize: "IDR 15.000.000",
-    image: photos.players,
-    status: "Segera Hadir",
-    teams: 0,
-    capacity: 20,
-  },
-  {
-    id: "valorant-rising",
-    title: "Valorant Rising Stars",
-    game: "VALORANT",
-    format: "5v5 · PC",
-    date: "04–06 JUL 2025",
-    prize: "IDR 20.000.000",
-    image: photos.players,
-    status: "Pendaftaran Dibuka",
-    teams: 18,
-    capacity: 32,
-  },
-  {
-    id: "garuda",
-    title: "Garuda Battle Royale",
-    game: "PUBG MOBILE",
-    format: "Squad · Mobile",
-    date: "10 JUL 2025",
-    prize: "IDR 30.000.000",
-    image: photos.arena,
-    status: "Segera Hadir",
-    teams: 8,
-    capacity: 24,
-  },
-  {
-    id: "weekend",
-    title: "Weekend Legends Cup",
-    game: "MOBILE LEGENDS",
-    format: "5v5 · Mobile",
-    date: "12–13 JUL 2025",
-    prize: "IDR 12.000.000",
-    image: photos.neon,
-    status: "Berlangsung",
-    teams: 16,
-    capacity: 16,
-  },
-]
 
 function TournamentPage({
   toast,
@@ -1111,17 +1218,64 @@ function TournamentPage({
   toast: (s: string) => void
   setPage: (p: Page) => void
 }) {
-  const [selectedTournament, setSelectedTournament] =
-    useState<PlayerTournament | null>(null)
-  const [registered, setRegistered] = useState<string[]>([])
+  const [tournaments, setTournaments] = useState<ApiTournament[]>([])
+  const [selectedTournament, setSelectedTournament] = useState<ApiTournament | null>(null)
+  const [registeredTeams, setRegisteredTeams] = useState<ApiTournamentTeam[]>([])
+  const [myTeams, setMyTeams] = useState<ApiTeamSummary[]>([])
+  const [selectedTeamToRegister, setSelectedTeamToRegister] = useState("")
   const [searchTournament, setSearchTournament] = useState("")
-  const [gameFilter, setGameFilter] = useState("Semua")
-  const visibleTournaments = playerTournaments.filter(
-    (tournament) =>
-      (gameFilter === "Semua" || tournament.game === gameFilter) &&
-      `${tournament.title} ${tournament.game}`
-        .toLowerCase()
-        .includes(searchTournament.toLowerCase()),
+  const [loading, setLoading] = useState(false)
+  const auth = getStoredAuth()
+
+  const loadTournaments = () => {
+    api.getTournaments().then((res) => {
+      if (res.ok && res.data) setTournaments(res.data)
+    })
+  }
+
+  useEffect(() => {
+    loadTournaments()
+    api.getTeams().then((res) => {
+      if (res.ok && res.data) {
+        // Tim di mana pengguna ini adalah kaptennya
+        setMyTeams(res.data.filter((t) => t.captain_username === auth.username))
+      }
+    })
+  }, [auth.username])
+
+  useEffect(() => {
+    if (selectedTournament) {
+      api.getTournamentTeams(selectedTournament.name).then((res) => {
+        if (res.ok && res.data) setRegisteredTeams(res.data)
+      })
+    } else {
+      setRegisteredTeams([])
+    }
+  }, [selectedTournament])
+
+  const handleRegisterTeam = async (tournamentName: string, teamName: string) => {
+    if (!auth.username) {
+      toast("Silakan login sebagai kapten tim untuk mendaftar.")
+      return
+    }
+    if (!teamName) {
+      toast("Pilih tim Anda terlebih dahulu.")
+      return
+    }
+    setLoading(true)
+    const res = await api.registerTournament(tournamentName, teamName)
+    setLoading(false)
+    if (res.ok) {
+      toast(`Tim ${teamName} berhasil didaftarkan ke ${tournamentName}!`)
+      api.getTournamentTeams(tournamentName).then((r) => r.ok && r.data && setRegisteredTeams(r.data))
+      loadTournaments()
+    } else {
+      toast(res.message || "Gagal mendaftarkan tim ke turnamen")
+    }
+  }
+
+  const visibleTournaments = tournaments.filter((t) =>
+    t.name.toLowerCase().includes(searchTournament.toLowerCase())
   )
 
   if (!selectedTournament) {
@@ -1133,15 +1287,14 @@ function TournamentPage({
               <i /> COMPETE & GROW
             </span>
             <h2>
-              TEMUKAN TURNAMEN <em>BERIKUTNYA.</em>
+              TURNAMEN <em>RESMI ESPORTS.</em>
             </h2>
             <p>
-              Semua turnamen langsung tersedia di sini. Gunakan pencarian hanya
-              saat kamu membutuhkan hasil yang lebih spesifik.
+              Daftar turnamen aktif yang disinkronkan secara langsung dari backend database Axum.
             </p>
           </div>
           <div className="browser-total">
-            <strong>{playerTournaments.length}</strong>
+            <strong>{tournaments.length}</strong>
             <span>TURNAMEN TERSEDIA</span>
           </div>
         </section>
@@ -1150,9 +1303,9 @@ function TournamentPage({
             <Icon name="search" size={18} />
             <input
               aria-label="Cari turnamen"
-              placeholder="Cari nama turnamen atau game..."
+              placeholder="Cari turnamen esport..."
               value={searchTournament}
-              onChange={(event) => setSearchTournament(event.target.value)}
+              onChange={(e) => setSearchTournament(e.target.value)}
             />
             {searchTournament && (
               <button
@@ -1163,39 +1316,19 @@ function TournamentPage({
               </button>
             )}
           </label>
-          <div className="game-filters" aria-label="Filter game">
-            {[
-              "Semua",
-              "VALORANT",
-              "MOBILE LEGENDS",
-              "APEX LEGENDS",
-              "PUBG MOBILE",
-            ].map((game) => (
-              <button
-                key={game}
-                className={gameFilter === game ? "active" : ""}
-                onClick={() => setGameFilter(game)}
-              >
-                {game}
-              </button>
-            ))}
-          </div>
         </div>
         <div className="browser-result-head">
           <div>
             <span>TURNAMEN</span>
-            <strong>
-              {gameFilter === "Semua" ? "Semua Kompetisi" : gameFilter}
-            </strong>
+            <strong>Semua Kompetisi Aktif</strong>
           </div>
           <span>{visibleTournaments.length} HASIL</span>
         </div>
         {visibleTournaments.length > 0 ? (
           <div className="tournament-catalog">
             {visibleTournaments.map((tournament) => {
-              const percentage = Math.round(
-                (tournament.teams / tournament.capacity) * 100,
-              )
+              const filledSlots = tournament.total_slots - tournament.available_slots
+              const percentage = Math.round((filledSlots / tournament.total_slots) * 100)
               return (
                 <button
                   className="catalog-card"
@@ -1203,39 +1336,39 @@ function TournamentPage({
                   onClick={() => setSelectedTournament(tournament)}
                 >
                   <div className="catalog-cover">
-                    <img src={tournament.image} alt="" />
+                    <img src={photos.arena} alt="" />
                     <div />
                     <Status
                       tone={
-                        tournament.status === "Pendaftaran Dibuka"
+                        tournament.status === "open"
                           ? "green"
-                          : tournament.status === "Berlangsung"
-                            ? "orange"
+                          : tournament.status === "completed"
+                            ? "blue"
                             : "purple"
                       }
                     >
-                      {tournament.status}
+                      {tournament.status || "open"}
                     </Status>
-                    <span className="catalog-date">{tournament.date}</span>
+                    <span className="catalog-date">ID #{tournament.id}</span>
                   </div>
                   <div className="catalog-body">
-                    <span>{tournament.game}</span>
-                    <h3>{tournament.title}</h3>
-                    <p>{tournament.format}</p>
+                    <span>E-SPORT TOURNAMENT</span>
+                    <h3>{tournament.name}</h3>
+                    <p>Single Elimination • Competitive Bracket</p>
                     <div className="catalog-meta">
                       <div>
-                        <small>TOTAL HADIAH</small>
-                        <strong>{tournament.prize}</strong>
+                        <small>STATUS</small>
+                        <strong>{tournament.status?.toUpperCase() || "OPEN"}</strong>
                       </div>
                       <span>
-                        {tournament.teams}/{tournament.capacity} TIM
+                        {filledSlots}/{tournament.total_slots} TIM
                       </span>
                     </div>
                     <div className="progress">
                       <i style={{ width: `${percentage}%` }} />
                     </div>
                     <span className="catalog-link">
-                      Lihat Detail <Icon name="arrow" size={16} />
+                      Lihat Peserta & Daftar <Icon name="arrow" size={16} />
                     </span>
                   </div>
                 </button>
@@ -1248,26 +1381,18 @@ function TournamentPage({
               <Icon name="search" size={30} />
             </div>
             <h3>Turnamen tidak ditemukan</h3>
-            <p>Coba gunakan nama game lain atau hapus kata kunci pencarian.</p>
-            <button
-              className="btn ghost"
-              onClick={() => {
-                setSearchTournament("")
-                setGameFilter("Semua")
-              }}
-            >
-              Reset Filter
-            </button>
+            <p>Belum ada turnamen yang sesuai atau dibuat di database backend.</p>
           </div>
         )}
       </div>
     )
   }
 
-  const isRegistered = registered.includes(selectedTournament.id)
+  const filledSlots = selectedTournament.total_slots - selectedTournament.available_slots
   const capacityPercentage = Math.round(
-    (selectedTournament.teams / selectedTournament.capacity) * 100,
+    (filledSlots / selectedTournament.total_slots) * 100
   )
+
   return (
     <div className="page">
       <button
@@ -1277,101 +1402,64 @@ function TournamentPage({
         <Icon name="arrow" size={17} /> Kembali ke Semua Turnamen
       </button>
       <section className="tournament-hero">
-        <img
-          src={selectedTournament.image}
-          alt={`Suasana turnamen ${selectedTournament.title}`}
-        />
+        <img src={photos.arena} alt="" />
         <div className="hero-shade" />
         <div className="tournament-hero-copy">
-          <Status
-            tone={
-              selectedTournament.status === "Pendaftaran Dibuka"
-                ? "green"
-                : selectedTournament.status === "Berlangsung"
-                  ? "orange"
-                  : "purple"
-            }
-          >
-            {selectedTournament.status}
-          </Status>
-          <span className="event-code">
-            AC / {selectedTournament.id.toUpperCase()}
-          </span>
-          <h2>{selectedTournament.title}</h2>
+          <Status tone="green">{selectedTournament.status || "open"}</Status>
+          <span className="event-code">API / ID #{selectedTournament.id}</span>
+          <h2>{selectedTournament.name}</h2>
           <p>
-            Turnamen VALORANT 5v5 terbesar musim ini. Rebut total hadiah dan
-            buktikan tim terbaikmu.
+            Turnamen resmi terdaftar di database Axum. Daftarkan tim Anda sekarang untuk memperebutkan gelar juara.
           </p>
           <div className="event-meta">
             <span>
-              <Icon name="calendar" />
-              {selectedTournament.date}
+              <Icon name="trophy" /> {selectedTournament.total_slots} Kuota Tim
             </span>
             <span>
-              <Icon name="gamepad" />
-              {selectedTournament.game} • {selectedTournament.format}
-            </span>
-            <span>
-              <Icon name="trophy" />
-              {selectedTournament.prize}
+              <Icon name="users" /> {selectedTournament.available_slots} Slot Tersedia
             </span>
           </div>
         </div>
       </section>
+
       <div className="tournament-layout">
         <section>
-          <SectionTitle kicker="OVERVIEW" title="Tentang Turnamen" />
-          <div className="content-card prose">
-            <p>
-              {selectedTournament.title} mempertemukan{" "}
-              {selectedTournament.capacity} tim terbaik dari seluruh Indonesia
-              dalam format single elimination. Seluruh pertandingan berlangsung
-              online, dengan semifinal dan final disiarkan secara langsung.
-            </p>
-            <h3>Format Kompetisi</h3>
-            <div className="format-grid">
-              <div>
-                <b>01</b>
-                <strong>Babak Awal</strong>
-                <span>Best of 1</span>
-              </div>
-              <div>
-                <b>02</b>
-                <strong>Quarterfinal</strong>
-                <span>Best of 3</span>
-              </div>
-              <div>
-                <b>03</b>
-                <strong>Grand Final</strong>
-                <span>Best of 5</span>
-              </div>
-            </div>
-            <h3>Persyaratan</h3>
-            <ul>
-              <li>
-                <Icon name="check" size={16} />
-                Roster berisi tepat 5 pemain aktif
-              </li>
-              <li>
-                <Icon name="check" size={16} />
-                Seluruh pemain minimal berusia 16 tahun
-              </li>
-              <li>
-                <Icon name="check" size={16} />
-                Rank minimal Platinum pada musim berjalan
-              </li>
-            </ul>
+          <SectionTitle kicker="PARTICIPANTS" title={`Tim Terdaftar (${registeredTeams.length})`} />
+          <div className="roster-list" style={{ marginTop: "16px" }}>
+            {registeredTeams.length > 0 ? (
+              registeredTeams.map((team, idx) => (
+                <article className="roster-row" key={team.team_id}>
+                  <div className={`avatar large av${idx % 4}`}>
+                    {team.team_name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="member-name">
+                    <strong>{team.team_name}</strong>
+                    <small>Kapten: {team.captain_username}</small>
+                  </div>
+                  <div className="member-role">
+                    <span>TERDAFTAR</span>
+                    <strong>{team.registered_at.slice(0, 10)}</strong>
+                  </div>
+                  <Status tone="green">Terverifikasi</Status>
+                </article>
+              ))
+            ) : (
+              <p style={{ padding: "20px", color: "var(--muted)" }}>
+                Belum ada tim yang mendaftar ke turnamen ini.
+              </p>
+            )}
           </div>
         </section>
+
         <aside>
           <div className="register-card">
             <span className="eyebrow">
-              <i /> SLOT TIM
+              <i /> PENDAFTARAN TIM
             </span>
             <div className="slot-count">
-              <strong>{selectedTournament.teams}</strong>
+              <strong>{filledSlots}</strong>
               <span>
-                / {selectedTournament.capacity}
+                / {selectedTournament.total_slots}
                 <br />
                 TIM TERDAFTAR
               </span>
@@ -1380,53 +1468,50 @@ function TournamentPage({
               <i style={{ width: `${capacityPercentage}%` }} />
             </div>
             <div className="capacity-label">
-              <span>Kapasitas terisi</span>
+              <span>Slot Terisi</span>
               <b>{capacityPercentage}%</b>
             </div>
             <hr />
-            <div className="deadline">
-              <Icon name="clock" />
-              <div>
-                <span>Pendaftaran ditutup</span>
-                <b>15 Juni 2025 • 23:59 WIB</b>
-              </div>
-            </div>
-            <button
-              className={`btn full ${isRegistered ? "registered" : "primary"}`}
-              disabled={selectedTournament.status !== "Pendaftaran Dibuka"}
-              onClick={() => {
-                setRegistered([...registered, selectedTournament.id])
-                toast("NOVA STRIKE berhasil didaftarkan.")
-              }}
-            >
-              {isRegistered ? (
-                <>
-                  <Icon name="check" /> Tim Sudah Terdaftar
-                </>
-              ) : selectedTournament.status === "Pendaftaran Dibuka" ? (
-                <>
-                  Daftarkan NOVA STRIKE <Icon name="arrow" />
-                </>
-              ) : (
-                <>Pendaftaran Belum Tersedia</>
-              )}
-            </button>
+
+            {myTeams.length > 0 ? (
+              <>
+                <label className="field-label">PILIH TIM ANDA (SEBAGAI KAPTEN)</label>
+                <select
+                  className="input"
+                  value={selectedTeamToRegister}
+                  onChange={(e) => setSelectedTeamToRegister(e.target.value)}
+                  style={{ marginBottom: "16px" }}
+                >
+                  <option value="">-- Pilih Tim --</option>
+                  {myTeams.map((t) => (
+                    <option key={t.id} value={t.name}>
+                      {t.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="btn primary full"
+                  disabled={!selectedTeamToRegister || loading || selectedTournament.available_slots <= 0}
+                  onClick={() => handleRegisterTeam(selectedTournament.name, selectedTeamToRegister)}
+                >
+                  {loading ? "Mendaftarkan..." : "Daftarkan Tim Ini"} <Icon name="arrow" />
+                </button>
+              </>
+            ) : (
+              <p style={{ fontSize: "12px", color: "var(--muted)", marginBottom: "14px" }}>
+                {auth.username
+                  ? "Anda belum memimpin tim apapun. Buat tim terlebih dahulu di menu 'Tim Saya'."
+                  : "Silakan login untuk mendaftarkan tim Anda."}
+              </p>
+            )}
+
             <button
               className="btn ghost full"
+              style={{ marginTop: "10px" }}
               onClick={() => setPage("schedule")}
             >
-              Lihat Jadwal
+              Lihat Jadwal Pertandingan
             </button>
-          </div>
-          <div className="organizer">
-            <div className="organizer-logo">AC</div>
-            <div>
-              <span>DISELENGGARAKAN OLEH</span>
-              <strong>Arena Core Official</strong>
-              <small>
-                <Icon name="check" size={12} /> Terverifikasi
-              </small>
-            </div>
           </div>
         </aside>
       </div>
@@ -1434,435 +1519,249 @@ function TournamentPage({
   )
 }
 
-const matches = [
-  {
-    id: "A-201",
-    time: "15:00",
-    a: "PHOENIX FIVE",
-    ai: "P5",
-    b: "VOID REAPERS",
-    bi: "VR",
-    stage: "Round of 32",
-    live: true,
-  },
-  {
-    id: "A-202",
-    time: "17:00",
-    a: "NOVA STRIKE",
-    ai: "NS",
-    b: "KRAKEN ID",
-    bi: "KI",
-    stage: "Round of 32",
-  },
-  {
-    id: "A-203",
-    time: "19:30",
-    a: "RIFT WALKERS",
-    ai: "RW",
-    b: "ECHO PRIME",
-    bi: "EP",
-    stage: "Round of 32",
-  },
-]
-
 function SchedulePage() {
-  const [day, setDay] = useState(0)
-  const dates = [
-    ["18", "RAB"],
-    ["19", "KAM"],
-    ["20", "JUM"],
-    ["21", "SAB"],
-    ["22", "MIN"],
-  ]
+  const [tournaments, setTournaments] = useState<ApiTournament[]>([])
+  const [selectedTournament, setSelectedTournament] = useState<string>("")
+  const [matches, setMatches] = useState<ApiMatch[]>([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    api.getTournaments().then((res) => {
+      if (res.ok && res.data && res.data.length > 0) {
+        setTournaments(res.data)
+        setSelectedTournament(res.data[0].name)
+      }
+    })
+  }, [])
+
+  useEffect(() => {
+    if (selectedTournament) {
+      setLoading(true)
+      api.getTournamentMatches(selectedTournament).then((res) => {
+        setLoading(false)
+        if (res.ok && res.data) {
+          setMatches(res.data)
+        } else {
+          setMatches([])
+        }
+      })
+    }
+  }, [selectedTournament])
+
   return (
     <div className="page">
       <div className="schedule-head">
         <div>
           <span className="eyebrow">
-            <i /> NEXUS CHAMPIONSHIP
+            <i /> BRACKET & MATCHES
           </span>
           <h2>
             JADWAL <em>PERTANDINGAN</em>
           </h2>
-          <p>Semua waktu ditampilkan dalam zona WIB (UTC+7).</p>
+          <p>Semua jadwal dan hasil pertandingan sinkron dari database backend.</p>
         </div>
         <div className="tournament-select">
-          <span>TURNAMEN</span>
-          <button>
-            Nexus Championship <Icon name="chevron" size={15} />
-          </button>
+          <span>PILIH TURNAMEN</span>
+          <select
+            className="input"
+            value={selectedTournament}
+            onChange={(e) => setSelectedTournament(e.target.value)}
+            style={{ width: "240px" }}
+          >
+            {tournaments.map((t) => (
+              <option key={t.id} value={t.name}>
+                {t.name}
+              </option>
+            ))}
+          </select>
         </div>
       </div>
-      <div className="date-tabs">
-        {dates.map((d, i) => (
-          <button
-            key={d[0]}
-            className={day === i ? "active" : ""}
-            onClick={() => setDay(i)}
-          >
-            <small>{d[1]}</small>
-            <strong>{d[0]}</strong>
-            <span>JUN</span>
-            {i === 0 && <i />}
-          </button>
-        ))}
-      </div>
-      {day === 0 ? (
-        <section className="match-day">
-          <SectionTitle
-            kicker="RABU, 18 JUNI"
-            title="Round of 32"
-            action={<span className="match-count">3 PERTANDINGAN</span>}
-          />
+
+      <section className="match-day" style={{ marginTop: "24px" }}>
+        <SectionTitle
+          kicker={selectedTournament ? selectedTournament.toUpperCase() : "TURNAMEN"}
+          title={`Jadwal Pertandingan (${matches.length} Match)`}
+        />
+        {loading ? (
+          <p style={{ padding: "20px", color: "var(--muted)" }}>Memuat jadwal pertandingan...</p>
+        ) : matches.length > 0 ? (
           <div className="matches">
             {matches.map((m) => (
               <article className="match-card" key={m.id}>
                 <div className="match-time">
-                  <strong>{m.time}</strong>
-                  <span>WIB</span>
-                  {m.live && <Status tone="orange">LIVE</Status>}
+                  <strong>{m.schedule_time ? m.schedule_time.slice(11, 16) : "TBD"}</strong>
+                  <span>{m.schedule_time ? m.schedule_time.slice(0, 10) : "WIB"}</span>
+                  {m.winner_name ? (
+                    <Status tone="blue">WIN: {m.winner_name}</Status>
+                  ) : (
+                    <Status tone="orange">{m.status || "Scheduled"}</Status>
+                  )}
                 </div>
                 <div className="match-main">
                   <div className="match-id">
                     <span>MATCH #{m.id}</span>
-                    <small>{m.stage}</small>
+                    <small>Ronde {m.round_number}</small>
                   </div>
                   <div className="versus">
                     <div>
-                      <strong>{m.a}</strong>
-                      <span className="mini-badge">{m.ai}</span>
+                      <strong style={{ color: m.winner_name === m.team1_name ? "var(--lime)" : "inherit" }}>
+                        {m.team1_name}
+                      </strong>
+                      <span className="mini-badge">{m.team1_name.slice(0, 2).toUpperCase()}</span>
                     </div>
                     <b>VS</b>
                     <div>
-                      <span className="mini-badge alt">{m.bi}</span>
-                      <strong>{m.b}</strong>
+                      <span className="mini-badge alt">{m.team2_name.slice(0, 2).toUpperCase()}</span>
+                      <strong style={{ color: m.winner_name === m.team2_name ? "var(--lime)" : "inherit" }}>
+                        {m.team2_name}
+                      </strong>
                     </div>
                   </div>
                 </div>
-                <button
-                  className="icon-btn"
-                  aria-label={`Detail pertandingan ${m.id}`}
-                >
-                  <Icon name="chevron" />
-                </button>
               </article>
             ))}
           </div>
-        </section>
-      ) : (
-        <div className="empty-state">
-          <div>
-            <Icon name="calendar" size={32} />
+        ) : (
+          <div className="empty-state">
+            <div>
+              <Icon name="calendar" size={32} />
+            </div>
+            <h3>Belum ada jadwal pertandingan</h3>
+            <p>Admin dapat membuat jadwal pertandingan baru melalui menu Control Center Admin.</p>
           </div>
-          <h3>Jadwal segera hadir</h3>
-          <p>
-            Bracket untuk tanggal ini akan diumumkan setelah babak sebelumnya
-            selesai.
-          </p>
-        </div>
-      )}
+        )}
+      </section>
     </div>
   )
 }
 
-type TournamentStatus = "Draft" | "Pendaftaran Dibuka" | "Berlangsung" | "Selesai" | "Diarsipkan"
-
-type AdminTournament = {
-  id: string
-  name: string
-  game: string
-  teams: string
-  status: TournamentStatus
-}
-
-type TeamRegistrationStatus = "Terverifikasi" | "Menunggu" | "Ditolak"
-
-type AdminTeam = {
-  name: string
-  code: string
-  captain: string
-  members: number
-  status: TeamRegistrationStatus
-}
-
-const initialAdminTeams: AdminTeam[] = [
-  {
-    name: "NOVA STRIKE",
-    code: "NVST",
-    captain: "RakaXtreme",
-    members: 5,
-    status: "Terverifikasi",
-  },
-  {
-    name: "PHOENIX FIVE",
-    code: "PHX5",
-    captain: "AresNova",
-    members: 5,
-    status: "Terverifikasi",
-  },
-  {
-    name: "VOID REAPERS",
-    code: "VOID",
-    captain: "Noctis",
-    members: 5,
-    status: "Menunggu",
-  },
-  {
-    name: "KRAKEN ID",
-    code: "KRKN",
-    captain: "TidalWave",
-    members: 4,
-    status: "Menunggu",
-  },
-  {
-    name: "ECHO PRIME",
-    code: "ECHO",
-    captain: "Reverb",
-    members: 5,
-    status: "Ditolak",
-  },
-]
-
-const initialTeamsByTournament: Record<string, AdminTeam[]> = {
-  nexus: initialAdminTeams,
-  midnight: [
-    {
-      name: "GARUDA FORCE",
-      code: "GRDA",
-      captain: "SkyLark",
-      members: 5,
-      status: "Terverifikasi",
-    },
-    {
-      name: "ONYX SQUAD",
-      code: "ONYX",
-      captain: "Mikael",
-      members: 5,
-      status: "Menunggu",
-    },
-    {
-      name: "RED COMETS",
-      code: "RDCM",
-      captain: "Blaze",
-      members: 4,
-      status: "Menunggu",
-    },
-  ],
-  apex: [],
-}
-
-const tournamentStatuses: TournamentStatus[] = [
-  "Draft",
-  "Pendaftaran Dibuka",
-  "Berlangsung",
-  "Selesai",
-  "Diarsipkan",
-]
-
-function tournamentStatusTone(
-  status: TournamentStatus,
-): "green" | "purple" | "orange" | "blue" | "gray" {
-  if (status === "Pendaftaran Dibuka") return "green"
-  if (status === "Berlangsung") return "orange"
-  if (status === "Selesai") return "blue"
-  if (status === "Diarsipkan") return "gray"
-  return "purple"
-}
-
 function AdminPage({ toast }: { toast: (s: string) => void }) {
-  const [tournaments, setTournaments] = useState<AdminTournament[]>([
-    {
-      id: "nexus",
-      name: "Nexus Championship",
-      game: "VALORANT",
-      teams: "24 / 32",
-      status: "Pendaftaran Dibuka",
-    },
-    {
-      id: "midnight",
-      name: "Midnight Brawl #12",
-      game: "MOBILE LEGENDS",
-      teams: "12 / 16",
-      status: "Berlangsung",
-    },
-    {
-      id: "apex",
-      name: "Apex Sunday Series",
-      game: "APEX LEGENDS",
-      teams: "0 / 20",
-      status: "Draft",
-    },
-  ])
-  const [modal, setModal] = useState<"tournament" | "match" | null>(null)
-  const [actionMenu, setActionMenu] = useState<number | null>(null)
-  const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  const [teamManagerId, setTeamManagerId] = useState<string | null>(null)
-  const [teamsByTournament, setTeamsByTournament] = useState(
-    initialTeamsByTournament,
-  )
-  const [teamSearch, setTeamSearch] = useState("")
-  const [teamFilter, setTeamFilter] =
-    useState<"Semua" | TeamRegistrationStatus>("Semua")
+  const [tournaments, setTournaments] = useState<ApiTournament[]>([])
+  const [teams, setTeams] = useState<ApiTeamSummary[]>([])
+  const [modal, setModal] = useState<"tournament" | "match" | "result" | null>(null)
+  const [newTourneyName, setNewTourneyName] = useState("")
+  const [newTourneySlots, setNewTourneySlots] = useState(16)
 
-  const managedTournament = tournaments.find(
-    (tournament) => tournament.id === teamManagerId,
-  )
-  const managedTeams = teamManagerId
-    ? (teamsByTournament[teamManagerId] ?? [])
-    : []
-  const visibleTeams = managedTeams.filter(
-    (team) =>
-      (teamFilter === "Semua" || team.status === teamFilter) &&
-      `${team.name} ${team.captain}`
-        .toLowerCase()
-        .includes(teamSearch.toLowerCase()),
-  )
+  // Form Buat Pertandingan
+  const [matchTourney, setMatchTourney] = useState("")
+  const [matchTeam1, setMatchTeam1] = useState("")
+  const [matchTeam2, setMatchTeam2] = useState("")
+  const [matchRound, setMatchRound] = useState(1)
 
-  const updateTeamStatus = (code: string, status: TeamRegistrationStatus) => {
-    if (!teamManagerId) return
-    const team = managedTeams.find((item) => item.code === code)
-    setTeamsByTournament({
-      ...teamsByTournament,
-      [teamManagerId]: managedTeams.map((item) =>
-        item.code === code ? { ...item, status } : item,
-      ),
+  // Form Hasil Pertandingan
+  const [resTourney, setResTourney] = useState("")
+  const [resTeam, setResTeam] = useState("")
+  const [resWinner, setResWinner] = useState("")
+
+  const [loading, setLoading] = useState(false)
+  const auth = getStoredAuth()
+
+  const loadData = () => {
+    api.getTournaments().then((res) => {
+      if (res.ok && res.data) {
+        setTournaments(res.data)
+        if (res.data.length > 0 && !matchTourney) {
+          setMatchTourney(res.data[0].name)
+          setResTourney(res.data[0].name)
+        }
+      }
     })
-    toast(`${team?.name} ditandai sebagai ${status.toLowerCase()}.`)
-  }
-
-  const removeTeam = (code: string) => {
-    if (!teamManagerId) return
-    const team = managedTeams.find((item) => item.code === code)
-    setTeamsByTournament({
-      ...teamsByTournament,
-      [teamManagerId]: managedTeams.filter((item) => item.code !== code),
+    api.getTeams().then((res) => {
+      if (res.ok && res.data) setTeams(res.data)
     })
-    toast(`${team?.name} telah dihapus dari turnamen.`)
   }
 
-  const updateStatus = (index: number, status: TournamentStatus) => {
-    setTournaments(
-      tournaments.map((tournament, tournamentIndex) =>
-        tournamentIndex === index ? { ...tournament, status } : tournament,
-      ),
-    )
-    setActionMenu(null)
-    toast(`Status ${tournaments[index].name} diubah menjadi ${status}.`)
-  }
+  useEffect(() => {
+    loadData()
+  }, [])
 
-  const duplicateTournament = (index: number) => {
-    const source = tournaments[index]
-    setTournaments([
-      ...tournaments,
-      {
-        ...source,
-        id: `${source.id}-copy-${tournaments.length + 1}`,
-        name: `${source.name} Copy`,
-        teams: source.teams.replace(/^\d+/, "0"),
-        status: "Draft",
-      },
-    ])
-    setActionMenu(null)
-    toast(`${source.name} berhasil diduplikasi sebagai draft.`)
-  }
-
-  const editTournament = (e: FormEvent<HTMLFormElement>) => {
+  const handleCreateTournament = async (e: FormEvent) => {
     e.preventDefault()
-    if (editingIndex === null) return
-    const data = new FormData(e.currentTarget)
-    const updatedName = String(data.get("name"))
-    setTournaments(
-      tournaments.map((tournament, index) =>
-        index === editingIndex
-          ? {
-              ...tournament,
-              name: updatedName,
-              game: String(data.get("game")),
-              status: String(data.get("status")) as TournamentStatus,
-            }
-          : tournament,
-      ),
-    )
-    setEditingIndex(null)
-    toast(`${updatedName} berhasil diperbarui.`)
+    setLoading(true)
+    const res = await api.createTournament(newTourneyName, newTourneySlots)
+    setLoading(false)
+    if (res.ok) {
+      toast(`Turnamen "${newTourneyName}" berhasil dibuat!`)
+      setModal(null)
+      setNewTourneyName("")
+      loadData()
+    } else {
+      toast(res.message || "Gagal membuat turnamen (Pastikan Anda login sebagai role 'admin')")
+    }
   }
 
-  const addTournament = (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const data = new FormData(e.currentTarget)
-    setTournaments([
-      ...tournaments,
-      {
-        id: `tournament-${tournaments.length + 1}`,
-        name: String(data.get("name")),
-        game: String(data.get("game")),
-        teams: "0 / 32",
-        status: "Draft",
-      },
-    ])
-    setModal(null)
-    toast("Turnamen baru berhasil dibuat.")
+  const handleDeleteTournament = async (name: string) => {
+    if (!confirm(`Hapus turnamen "${name}"?`)) return
+    const res = await api.deleteTournament(name)
+    if (res.ok) {
+      toast(`Turnamen "${name}" berhasil dihapus.`)
+      loadData()
+    } else {
+      toast(res.message || "Gagal menghapus turnamen (hanya admin)")
+    }
   }
+
+  const handleCreateMatch = async (e: FormEvent) => {
+    e.preventDefault()
+    if (matchTeam1 === matchTeam2) {
+      toast("Tim 1 dan Tim 2 tidak boleh sama!")
+      return
+    }
+    setLoading(true)
+    const res = await api.createMatch(matchTourney, matchTeam1, matchTeam2, matchRound)
+    setLoading(false)
+    if (res.ok) {
+      toast("Pertandingan berhasil dibuat dan masuk jadwal!")
+      setModal(null)
+    } else {
+      toast(res.message || "Gagal membuat match (hanya admin)")
+    }
+  }
+
+  const handleSetMatchResult = async (e: FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    const res = await api.setMatchResult(resTourney, resTeam, resWinner)
+    setLoading(false)
+    if (res.ok) {
+      toast(`Hasil match turnamen ${resTourney} dicatat! Pemenang: ${resWinner}`)
+      setModal(null)
+    } else {
+      toast(res.message || "Gagal mencatat pemenang (hanya admin)")
+    }
+  }
+
   return (
     <div className="page admin-page">
       <section className="admin-welcome" id="admin-overview">
         <div>
           <span className="eyebrow">
-            <i /> CONTROL CENTER
+            <i /> CONTROL CENTER (ROLE: {(auth.role || "USER").toUpperCase()})
           </span>
           <h2>
             KENDALIKAN <em>ARENA.</em>
           </h2>
-          <p>Kelola turnamen, pertandingan, dan jadwal dari satu tempat.</p>
+          <p>Kelola turnamen resmi, buat bracket pertandingan, dan catat pemenang turnamen.</p>
         </div>
         <div className="admin-actions">
+          <button className="btn ghost" onClick={() => setModal("result")}>
+            <Icon name="crown" /> Catat Hasil Match
+          </button>
           <button className="btn ghost" onClick={() => setModal("match")}>
             <Icon name="swords" /> Buat Pertandingan
           </button>
-          <button
-            className="btn primary"
-            onClick={() => setModal("tournament")}
-          >
+          <button className="btn primary" onClick={() => setModal("tournament")}>
             <Icon name="plus" /> Buat Turnamen
           </button>
         </div>
       </section>
+
       <section className="stats-grid admin-stats">
         {[
-          [
-            "Turnamen Aktif",
-            String(
-              tournaments.filter(
-                (t) =>
-                  t.status === "Pendaftaran Dibuka" ||
-                  t.status === "Berlangsung",
-              ).length,
-            ).padStart(2, "0"),
-            `${tournaments.filter((t) => t.status === "Pendaftaran Dibuka").length} pendaftaran dibuka`,
-            "trophy",
-          ],
-          [
-            "Total Tim",
-            String(
-              Object.values(teamsByTournament).reduce(
-                (total, teams) => total + teams.length,
-                0,
-              ),
-            ),
-            "Di semua turnamen",
-            "users",
-          ],
-          ["Match Hari Ini", "08", "1 sedang live", "swords"],
-          [
-            "Perlu Tindakan",
-            String(
-              Object.values(teamsByTournament)
-                .flat()
-                .filter((team) => team.status === "Menunggu").length,
-            ).padStart(2, "0"),
-            "Pendaftaran menunggu",
-            "bell",
-          ],
+          ["Turnamen di Database", String(tournaments.length), "Tersimpan di PostgreSQL", "trophy"],
+          ["Tim Terdaftar", String(teams.length), "Aktif di server Axum", "users"],
+          ["Akses Admin", auth.role === "admin" ? "AKTIF" : "NON-ADMIN", auth.username || "Anonymous", "shield"],
+          ["Status API", "ONLINE", "127.0.0.1:8080", "bolt"],
         ].map(([label, value, meta, icon], i) => (
           <article className="stat-card" key={label}>
             <div className={`stat-icon c${i}`}>
@@ -1874,458 +1773,178 @@ function AdminPage({ toast }: { toast: (s: string) => void }) {
           </article>
         ))}
       </section>
-      <div className="admin-grid">
-        <section id="admin-tournaments">
-          <SectionTitle
-            kicker="MANAGEMENT"
-            title="Daftar Turnamen"
-            action={
-              <div className="section-actions">
-                <button
-                  className="text-btn manage-all-teams"
-                  onClick={() => setTeamManagerId(tournaments[0]?.id ?? null)}
-                >
-                  <Icon name="users" size={15} /> Kelola Semua Tim
-                </button>
-                <button
-                  className="text-btn"
-                  onClick={() => setModal("tournament")}
-                >
-                  <Icon name="plus" size={15} /> Tambah Baru
-                </button>
-              </div>
-            }
-          />
-          <div className="table-card">
-            <div className="table-head">
-              <span>TURNAMEN</span>
-              <span>KAPASITAS</span>
-              <span>STATUS</span>
-              <span>AKSI</span>
-            </div>
-            {tournaments.map((t, i) => (
-              <div className="table-row" key={`${t.name}-${i}`}>
-                <div>
-                  <span className="game-logo">
-                    {t.name.slice(0, 2).toUpperCase()}
-                  </span>
-                  <p>
-                    <strong>{t.name}</strong>
-                    <small>{t.game}</small>
-                  </p>
-                </div>
-                <span>
-                  {
-                    (teamsByTournament[t.id] ?? []).filter(
-                      (team) => team.status !== "Ditolak",
-                    ).length
-                  }{" "}
-                  / {t.teams.split("/")[1]?.trim() ?? "32"} TIM
-                </span>
-                <Status tone={tournamentStatusTone(t.status)}>
-                  {t.status}
-                </Status>
-                <div className="table-actions">
-                  <button
-                    className="danger-icon"
-                    aria-label={`Hapus ${t.name}`}
-                    onClick={() => {
-                      setTournaments(
-                        tournaments.filter((_, index) => index !== i),
-                      )
-                      setActionMenu(null)
-                      toast(`${t.name} telah dihapus.`)
-                    }}
-                  >
-                    <Icon name="trash" size={17} />
-                  </button>
-                  <button
-                    className="icon-btn"
-                    aria-label={`Menu aksi ${t.name}`}
-                    aria-expanded={actionMenu === i}
-                    onClick={() => setActionMenu(actionMenu === i ? null : i)}
-                  >
-                    <Icon name="more" size={18} />
-                  </button>
-                  {actionMenu === i && (
-                    <div className="tournament-menu">
-                      <div className="menu-heading">
-                        <span>AKSI TURNAMEN</span>
-                        <strong>{t.name}</strong>
-                      </div>
-                      <button
-                        onClick={() => {
-                          setEditingIndex(i)
-                          setActionMenu(null)
-                        }}
-                      >
-                        <Icon name="grid" size={16} />
-                        Edit detail
-                      </button>
-                      <button
-                        onClick={() => {
-                          setTeamManagerId(t.id)
-                          setActionMenu(null)
-                        }}
-                      >
-                        <Icon name="users" size={16} />
-                        Kelola tim peserta
-                      </button>
-                      <button
-                        onClick={() => {
-                          setActionMenu(null)
-                          setModal("match")
-                        }}
-                      >
-                        <Icon name="calendar" size={16} />
-                        Atur jadwal
-                      </button>
-                      <button onClick={() => duplicateTournament(i)}>
-                        <Icon name="plus" size={16} />
-                        Duplikat turnamen
-                      </button>
-                      <div className="menu-status">
-                        <span>UBAH STATUS</span>
-                        {tournamentStatuses.map((status) => (
-                          <button
-                            key={status}
-                            className={t.status === status ? "selected" : ""}
-                            onClick={() => updateStatus(i, status)}
-                          >
-                            <i
-                              className={`status-dot ${tournamentStatusTone(status)}`}
-                            />
-                            {status}
-                            {t.status === status && (
-                              <Icon name="check" size={14} />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                      <button
-                        className="archive-action"
-                        onClick={() => updateStatus(i, "Diarsipkan")}
-                        disabled={t.status === "Diarsipkan"}
-                      >
-                        <Icon name="shield" size={16} />
-                        Arsipkan turnamen
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
+
+      <section style={{ marginTop: "20px" }}>
+        <SectionTitle kicker="MANAGEMENT" title="Daftar Turnamen di Database" />
+        <div className="table-card">
+          <div className="table-head">
+            <span>TURNAMEN</span>
+            <span>KUOTA & TERISI</span>
+            <span>STATUS</span>
+            <span>AKSI ADMIN</span>
           </div>
-        </section>
-        <aside id="admin-schedule">
-          <SectionTitle kicker="TODAY" title="Jadwal Hari Ini" />
-          <div className="timeline">
-            {matches.map((m, i) => (
-              <div className="timeline-row" key={m.id}>
-                <div>
-                  <strong>{m.time}</strong>
-                  <span>WIB</span>
-                </div>
-                <i className={i === 0 ? "live" : ""} />
+          {tournaments.map((t) => (
+            <div className="table-row" key={t.id}>
+              <div>
+                <span className="game-logo">{t.name.slice(0, 2).toUpperCase()}</span>
                 <p>
-                  <span>MATCH #{m.id}</span>
-                  <strong>
-                    {m.a} <em>vs</em> {m.b}
-                  </strong>
-                  <small>
-                    {i === 0 ? "Sedang berlangsung" : "Belum dimulai"}
-                  </small>
+                  <strong>{t.name}</strong>
+                  <small>ID #{t.id}</small>
                 </p>
+              </div>
+              <span>
+                {t.total_slots - t.available_slots} / {t.total_slots} TIM
+              </span>
+              <Status tone={t.status === "open" ? "green" : "purple"}>
+                {t.status || "open"}
+              </Status>
+              <div className="table-actions">
                 <button
-                  className="icon-btn"
-                  aria-label="Atur jadwal"
-                  onClick={() => toast(`Jadwal match ${m.id} siap diedit.`)}
+                  className="danger-icon"
+                  aria-label={`Hapus ${t.name}`}
+                  onClick={() => handleDeleteTournament(t.name)}
+                  title="Hapus Turnamen (Khusus Admin)"
                 >
-                  <Icon name="calendar" size={17} />
+                  <Icon name="trash" size={17} />
                 </button>
               </div>
-            ))}
-            <button className="timeline-add" onClick={() => setModal("match")}>
-              <Icon name="plus" size={16} /> Tambah pertandingan
-            </button>
-          </div>
-        </aside>
-      </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {modal === "tournament" && (
         <Modal title="Buat Turnamen Baru" close={() => setModal(null)}>
-          <form onSubmit={addTournament}>
+          <form onSubmit={handleCreateTournament}>
             <label className="field-label">NAMA TURNAMEN</label>
             <input
               className="input"
-              name="name"
               required
-              placeholder="Contoh: Arena Masters"
+              value={newTourneyName}
+              onChange={(e) => setNewTourneyName(e.target.value)}
+              placeholder="Contoh: VALORANT MASTERS 2026"
             />
-            <label className="field-label">GAME</label>
-            <select className="input" name="game">
-              <option>VALORANT</option>
-              <option>MOBILE LEGENDS</option>
-              <option>APEX LEGENDS</option>
-            </select>
-            <button className="btn primary full" type="submit">
-              Buat Turnamen <Icon name="arrow" />
-            </button>
-          </form>
-        </Modal>
-      )}
-      {editingIndex !== null && (
-        <Modal title="Edit Detail Turnamen" close={() => setEditingIndex(null)}>
-          <form onSubmit={editTournament}>
-            <label className="field-label" htmlFor="edit-name">
-              NAMA TURNAMEN
-            </label>
+            <label className="field-label">KUOTA MAKSIMAL TIM</label>
             <input
               className="input"
-              id="edit-name"
-              name="name"
+              type="number"
+              min="2"
+              max="64"
               required
-              defaultValue={tournaments[editingIndex].name}
+              value={newTourneySlots}
+              onChange={(e) => setNewTourneySlots(Number(e.target.value))}
             />
-            <label className="field-label" htmlFor="edit-game">
-              GAME
-            </label>
-            <select
-              className="input"
-              id="edit-game"
-              name="game"
-              defaultValue={tournaments[editingIndex].game}
-            >
-              <option>VALORANT</option>
-              <option>MOBILE LEGENDS</option>
-              <option>APEX LEGENDS</option>
-            </select>
-            <label className="field-label" htmlFor="edit-status">
-              STATUS
-            </label>
-            <select
-              className="input"
-              id="edit-status"
-              name="status"
-              defaultValue={tournaments[editingIndex].status}
-            >
-              {tournamentStatuses.map((status) => (
-                <option key={status}>{status}</option>
-              ))}
-            </select>
-            <button className="btn primary full" type="submit">
-              Simpan Perubahan <Icon name="check" />
+            <button className="btn primary full" type="submit" disabled={loading} style={{ marginTop: "16px" }}>
+              {loading ? "Menyimpan..." : "Buat Turnamen di Database"} <Icon name="arrow" />
             </button>
           </form>
         </Modal>
       )}
-      {teamManagerId !== null && managedTournament && (
-        <Modal
-          key={teamManagerId}
-          title="Kelola Tim Peserta"
-          close={() => {
-            setTeamManagerId(null)
-            setTeamSearch("")
-            setTeamFilter("Semua")
-          }}
-          wide
-        >
-          <div className="team-manager">
-            <div className="tournament-switcher">
-              <div>
-                <span>PILIH TURNAMEN</span>
-                <p>
-                  Berpindah turnamen tanpa kembali ke daftar atau melakukan
-                  pencarian ulang.
-                </p>
-              </div>
-              <label>
-                <Icon name="trophy" size={17} />
-                <select
-                  aria-label="Pilih turnamen yang akan dikelola"
-                  value={teamManagerId}
-                  onChange={(event) => {
-                    setTeamManagerId(event.target.value)
-                    setTeamSearch("")
-                    setTeamFilter("Semua")
-                  }}
-                >
-                  {tournaments.map((tournament) => (
-                    <option key={tournament.id} value={tournament.id}>
-                      {tournament.name} · {tournament.status}
-                    </option>
-                  ))}
-                </select>
-                <Icon name="chevron" size={16} />
-              </label>
-            </div>
-            <div className="team-manager-summary">
-              <div>
-                <span>TURNAMEN</span>
-                <strong>{managedTournament.name}</strong>
-                <small>
-                  {managedTournament.game} · {managedTournament.status}
-                </small>
-              </div>
-              <div className="team-summary-count">
-                <strong>
-                  {
-                    managedTeams.filter(
-                      (team) => team.status === "Terverifikasi",
-                    ).length
-                  }
-                </strong>
-                <span>TIM LOLOS</span>
-              </div>
-              <div className="team-summary-count pending">
-                <strong>
-                  {
-                    managedTeams.filter((team) => team.status === "Menunggu")
-                      .length
-                  }
-                </strong>
-                <span>MENUNGGU</span>
-              </div>
-            </div>
-            <div className="team-manager-tools">
-              <label className="team-search">
-                <Icon name="search" size={17} />
-                <input
-                  aria-label="Cari tim atau kapten"
-                  placeholder="Cari tim atau kapten..."
-                  value={teamSearch}
-                  onChange={(event) => setTeamSearch(event.target.value)}
-                />
-              </label>
-              <button
-                className="invite-team"
-                onClick={() => toast("Tautan undangan tim berhasil disalin.")}
-              >
-                <Icon name="plus" size={16} />
-                Undang Tim
-              </button>
-            </div>
-            <div className="team-filter" aria-label="Filter status tim">
-              {(["Semua", "Terverifikasi", "Menunggu", "Ditolak"] as const).map(
-                (filter) => (
-                  <button
-                    key={filter}
-                    className={teamFilter === filter ? "active" : ""}
-                    onClick={() => setTeamFilter(filter)}
-                  >
-                    {filter}
-                    <span>
-                      {filter === "Semua"
-                        ? managedTeams.length
-                        : managedTeams.filter((team) => team.status === filter)
-                            .length}
-                    </span>
-                  </button>
-                ),
-              )}
-            </div>
-            <div className="managed-team-list">
-              {visibleTeams.length > 0 ? (
-                visibleTeams.map((team) => (
-                  <article className="managed-team" key={team.code}>
-                    <div className="managed-team-logo">
-                      {team.code.slice(0, 2)}
-                    </div>
-                    <div className="managed-team-name">
-                      <strong>{team.name}</strong>
-                      <small>
-                        ID {team.code} · Kapten {team.captain}
-                      </small>
-                    </div>
-                    <div className="managed-team-roster">
-                      <span>ROSTER</span>
-                      <strong>{team.members}/5 pemain</strong>
-                    </div>
-                    <Status
-                      tone={
-                        team.status === "Terverifikasi"
-                          ? "green"
-                          : team.status === "Menunggu"
-                            ? "orange"
-                            : "gray"
-                      }
-                    >
-                      {team.status}
-                    </Status>
-                    <div className="managed-team-actions">
-                      {team.status !== "Terverifikasi" && (
-                        <button
-                          className="approve-team"
-                          onClick={() =>
-                            updateTeamStatus(team.code, "Terverifikasi")
-                          }
-                          disabled={team.members < 5}
-                          title={
-                            team.members < 5
-                              ? "Roster harus berisi 5 pemain"
-                              : "Setujui tim"
-                          }
-                        >
-                          <Icon name="check" size={16} />
-                          Setujui
-                        </button>
-                      )}
-                      {team.status === "Menunggu" && (
-                        <button
-                          className="reject-team"
-                          onClick={() => updateTeamStatus(team.code, "Ditolak")}
-                          aria-label={`Tolak ${team.name}`}
-                        >
-                          <Icon name="close" size={16} />
-                        </button>
-                      )}
-                      {team.status === "Terverifikasi" && (
-                        <button
-                          className="reject-team"
-                          onClick={() => removeTeam(team.code)}
-                          aria-label={`Hapus ${team.name} dari turnamen`}
-                        >
-                          <Icon name="trash" size={16} />
-                        </button>
-                      )}
-                    </div>
-                  </article>
-                ))
-              ) : (
-                <div className="team-empty">
-                  <Icon name="users" size={26} />
-                  <strong>Tim tidak ditemukan</strong>
-                  <span>Coba kata kunci atau filter yang berbeda.</span>
-                </div>
-              )}
-            </div>
-          </div>
+
+      {modal === "match" && (
+        <Modal title="Buat Pertandingan Baru" close={() => setModal(null)}>
+          <form onSubmit={handleCreateMatch}>
+            <label className="field-label">PILIH TURNAMEN</label>
+            <select
+              className="input"
+              value={matchTourney}
+              onChange={(e) => setMatchTourney(e.target.value)}
+            >
+              {tournaments.map((t) => (
+                <option key={t.id} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <label className="field-label">TIM 1</label>
+            <select
+              className="input"
+              value={matchTeam1}
+              onChange={(e) => setMatchTeam1(e.target.value)}
+              required
+            >
+              <option value="">-- Pilih Tim 1 --</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <label className="field-label">TIM 2</label>
+            <select
+              className="input"
+              value={matchTeam2}
+              onChange={(e) => setMatchTeam2(e.target.value)}
+              required
+            >
+              <option value="">-- Pilih Tim 2 --</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <label className="field-label">NOMOR RONDE</label>
+            <input
+              className="input"
+              type="number"
+              min="1"
+              max="10"
+              value={matchRound}
+              onChange={(e) => setMatchRound(Number(e.target.value))}
+            />
+            <button className="btn primary full" type="submit" disabled={loading} style={{ marginTop: "16px" }}>
+              {loading ? "Menyimpan..." : "Simpan Pertandingan"} <Icon name="calendar" />
+            </button>
+          </form>
         </Modal>
       )}
-      {modal === "match" && (
-        <Modal title="Buat Pertandingan" close={() => setModal(null)}>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault()
-              setModal(null)
-              toast("Pertandingan berhasil ditambahkan ke jadwal.")
-            }}
-          >
-            <label className="field-label">TIM A</label>
-            <input className="input" required placeholder="Pilih tim pertama" />
-            <label className="field-label">TIM B</label>
-            <input className="input" required placeholder="Pilih tim kedua" />
-            <div className="split-fields">
-              <div>
-                <label className="field-label">TANGGAL</label>
-                <input className="input" type="date" required />
-              </div>
-              <div>
-                <label className="field-label">WAKTU</label>
-                <input className="input" type="time" required />
-              </div>
-            </div>
-            <button className="btn primary full" type="submit">
-              Simpan Jadwal <Icon name="calendar" />
+
+      {modal === "result" && (
+        <Modal title="Catat Pemenang Pertandingan" close={() => setModal(null)}>
+          <form onSubmit={handleSetMatchResult}>
+            <label className="field-label">TURNAMEN</label>
+            <select
+              className="input"
+              value={resTourney}
+              onChange={(e) => setResTourney(e.target.value)}
+            >
+              {tournaments.map((t) => (
+                <option key={t.id} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <label className="field-label">SALAH SATU TIM YANG BERTANDING</label>
+            <select
+              className="input"
+              value={resTeam}
+              onChange={(e) => setResTeam(e.target.value)}
+              required
+            >
+              <option value="">-- Pilih Tim --</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <label className="field-label">TIM PEMENANG</label>
+            <select
+              className="input"
+              value={resWinner}
+              onChange={(e) => setResWinner(e.target.value)}
+              required
+            >
+              <option value="">-- Pilih Tim Pemenang --</option>
+              {teams.map((t) => (
+                <option key={t.id} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+            <button className="btn primary full" type="submit" disabled={loading} style={{ marginTop: "16px" }}>
+              {loading ? "Menyimpan..." : "Kukuhkan Pemenang Match"} <Icon name="check" />
             </button>
           </form>
         </Modal>
@@ -2494,21 +2113,23 @@ function AuthPage({
               </div>
             )}
             <label className="field-label" htmlFor="username">
-              USERNAME
+              USERNAME (3-32 KARAKTER: HURUF, ANGKA, _ ATAU -)
             </label>
             <div className="input-icon">
               <Icon name="user" />
               <input
                 id="username"
                 required
+                minLength={3}
+                maxLength={32}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Username (min 3 karakter)"
+                placeholder="Contoh: player_satu"
               />
             </div>
             <div className="label-row">
               <label className="field-label" htmlFor="password">
-                PASSWORD
+                PASSWORD (MINIMAL 6 KARAKTER)
               </label>
               {!register && <button type="button">Lupa password?</button>}
             </div>
@@ -2557,6 +2178,7 @@ function AuthPage({
 
 const pagePaths: Record<Page, string> = {
   dashboard: "/",
+  profile: "/profile",
   team: "/teams",
   tournament: "/tournaments",
   schedule: "/schedule",
@@ -2566,6 +2188,7 @@ const pagePaths: Record<Page, string> = {
 
 const pathPages: Record<string, Page> = {
   "/": "dashboard",
+  "/profile": "profile",
   "/teams": "team",
   "/tournaments": "tournament",
   "/schedule": "schedule",
@@ -2695,6 +2318,7 @@ export default function App() {
   const page = pathPages[location.pathname] ?? "dashboard"
   const setPage = (nextPage: Page) => navigate(pagePaths[nextPage])
   const [currentUser, setCurrentUser] = useState<string>(getStoredAuth().username || "Player")
+  const [currentRole, setCurrentRole] = useState<string>(getStoredAuth().role || "user")
   const [mobileNav, setMobileNav] = useState(false)
   const [message, setMessage] = useState("")
   const toast = (text: string) => {
@@ -2704,25 +2328,65 @@ export default function App() {
   const logout = () => {
     clearStoredAuth()
     setCurrentUser("Player")
+    setCurrentRole("user")
     navigate("/login")
     toast("Berhasil keluar dari akun")
   }
+  const [editUsernameOpen, setEditUsernameOpen] = useState(false)
+  const [newUsernameVal, setNewUsernameVal] = useState("")
+
+  const handleUpdateUsernameSubmit = async (e: FormEvent) => {
+    e.preventDefault()
+    if (!newUsernameVal.trim()) return
+    const res = await api.updateUsername(newUsernameVal.trim())
+    if (res.ok) {
+      toast(`Username berhasil diubah menjadi ${newUsernameVal.trim()}!`)
+      setCurrentUser(newUsernameVal.trim())
+      setStoredAuth(getStoredAuth().token || "", newUsernameVal.trim(), currentRole)
+      setEditUsernameOpen(false)
+      setNewUsernameVal("")
+    } else {
+      toast(res.message || "Gagal mengubah username")
+    }
+  }
+
   if (page === "login")
     return (
       <AuthPage
         initialRegister={location.pathname === "/register"}
         onLogin={(username) => {
+          const auth = getStoredAuth()
           setCurrentUser(username)
+          setCurrentRole(auth.role || "user")
           navigate("/")
           toast(`Selamat datang, ${username}!`)
         }}
       />
     )
-  if (page === "admin")
+  if (page === "admin") {
+    const auth = getStoredAuth()
+    if (auth.role !== "admin") {
+      return (
+        <div className="page" style={{ textAlign: "center", paddingTop: "100px" }}>
+          <div style={{ maxWidth: "480px", margin: "auto", background: "var(--panel)", padding: "36px", border: "1px solid var(--line)" }}>
+            <div style={{ color: "var(--orange)", marginBottom: "16px" }}>
+              <Icon name="shield" size={48} />
+            </div>
+            <h2 style={{ marginBottom: "12px" }}>Akses Ditolak (403)</h2>
+            <p style={{ color: "var(--muted)", marginBottom: "24px" }}>
+              Halaman Control Center Admin hanya dapat diakses oleh akun dengan role <strong>admin</strong>. Akun player biasa tidak memiliki izin ke halaman ini.
+            </p>
+            <button className="btn primary full" onClick={() => navigate("/")}>
+              Kembali ke Dashboard Player
+            </button>
+          </div>
+        </div>
+      )
+    }
     return (
       <div className="app-shell admin-shell">
         <div className="main-shell">
-          <AdminHeader logout={() => navigate("/login")} />
+          <AdminHeader logout={logout} />
           <main>
             <AdminPage toast={toast} />
           </main>
@@ -2737,6 +2401,7 @@ export default function App() {
         )}
       </div>
     )
+  }
   return (
     <div className="app-shell">
       <Sidebar
@@ -2745,12 +2410,18 @@ export default function App() {
         open={mobileNav}
         close={() => setMobileNav(false)}
         username={currentUser}
+        role={currentRole}
         onLogout={logout}
       />
       <div className="main-shell">
-        <Header page={page} openMenu={() => setMobileNav(true)} />
+        <Header
+          page={page}
+          openMenu={() => setMobileNav(true)}
+          onUpdateUsername={currentUser !== "Player" ? () => setEditUsernameOpen(true) : undefined}
+        />
         <main>
           {page === "dashboard" && <Dashboard setPage={setPage} />}
+          {page === "profile" && <ProfilePage setPage={setPage} toast={toast} onUpdateUsername={() => setEditUsernameOpen(true)} />}
           {page === "team" && <TeamPage toast={toast} />}
           {page === "tournament" && (
             <TournamentPage toast={toast} setPage={setPage} />
@@ -2758,6 +2429,27 @@ export default function App() {
           {page === "schedule" && <SchedulePage />}
         </main>
       </div>
+      {editUsernameOpen && (
+        <Modal title="Ubah Username Akun" close={() => setEditUsernameOpen(false)}>
+          <form onSubmit={handleUpdateUsernameSubmit}>
+            <p className="modal-copy">
+              Ubah username akun Anda saat ini. Perubahan akan disimpan secara permanen di database backend.
+            </p>
+            <label className="field-label">USERNAME BARU</label>
+            <input
+              className="input"
+              required
+              minLength={3}
+              value={newUsernameVal}
+              onChange={(e) => setNewUsernameVal(e.target.value)}
+              placeholder="Masukkan username baru..."
+            />
+            <button className="btn primary full" type="submit" style={{ marginTop: "16px" }}>
+              Simpan Username Baru <Icon name="check" />
+            </button>
+          </form>
+        </Modal>
+      )}
       {message && (
         <div className="toast" role="status">
           <span>

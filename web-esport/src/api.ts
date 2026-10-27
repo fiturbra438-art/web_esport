@@ -59,7 +59,7 @@ export interface ApiMatch {
   status: string | null
   team1_name: string
   team2_name: string
-  winner_team_name: string | null
+  winner_name: string | null
 }
 
 export function getStoredAuth(): {

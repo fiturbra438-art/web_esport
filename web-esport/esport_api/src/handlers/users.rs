@@ -49,8 +49,8 @@ pub(crate) fn validate_username(username: &str) -> Result<(), &'static str> {
 }
 
 pub(crate) fn validate_password(password: &str) -> Result<(), &'static str> {
-    if !(12..=128).contains(&password.len()) {
-        return Err("Password harus memiliki panjang 12-128 byte");
+    if !(6..=128).contains(&password.len()) {
+        return Err("Password harus memiliki panjang 6-128 karakter");
     }
     Ok(())
 }

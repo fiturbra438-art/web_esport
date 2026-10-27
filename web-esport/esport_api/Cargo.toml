@@ -5,7 +5,7 @@ edition = "2024"
 
 [dependencies]
 axum = "0.7"
-tower-http = { version = "0.5", features = ["cors"] }
+tower-http = { version = "0.5", features = ["cors", "fs"] }
 tokio = { version = "1.0", features = ["full"] }
 sqlx = { version = "0.7", features = ["runtime-tokio", "tls-native-tls", "postgres", "migrate", "time"] }
 serde = { version = "1.0", features = ["derive"] }

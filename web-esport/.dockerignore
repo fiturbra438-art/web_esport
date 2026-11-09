@@ -1,0 +1,13 @@
+.git
+.github
+.gitignore
+node_modules
+dist
+target
+esport_api/target
+*.tsbuildinfo
+**/.env
+**/.env.*
+!**/.env.example
+!**/.env.production.example
+README*

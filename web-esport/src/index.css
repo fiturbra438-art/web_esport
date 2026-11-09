@@ -1113,3 +1113,50 @@ h1,h2,h3,.logo,.btn,.eyebrow,.date-block,.stat-card strong,.top-kicker,
   .gallery-browser { border-radius: 18px; }
   .gallery-screen-link { min-height: 150px; grid-template-columns: 70px 1fr 24px; gap: 14px; padding: 16px; }.gallery-screen-number { width: 70px; height: 104px; }
 }
+
+/* Mobile viewport overflow, word-break & backdrop-filter bleed fixes */
+:root { color-scheme: dark; }
+html, body, #root, .app-shell, .main-shell, main {
+  max-width: 100%;
+  overflow-x: clip;
+  background-color: var(--bg);
+}
+.welcome-copy, .welcome-copy h2, .team-hub-head h2, .tournament-browser-head h2, .admin-welcome h2, .schedule-head h2 {
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.tournament-select select.input {
+  width: min(240px, 100%) !important;
+  max-width: 100%;
+}
+@media (max-width: 880px) {
+  .sidebar {
+    left: 0;
+    transform: translate3d(-105%, 0, 0);
+    box-shadow: none;
+    pointer-events: none;
+    visibility: hidden;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: #151419;
+  }
+  .sidebar.open {
+    transform: translate3d(0, 0, 0);
+    box-shadow: 25px 0 60px rgba(0,0,0,.75);
+    pointer-events: auto;
+    visibility: visible;
+  }
+}
+@media (max-width: 620px) {
+  .welcome-copy h2, .tournament-browser-head h2, .team-hub-head h2, .schedule-head h2, .admin-welcome h2 {
+    font-size: clamp(28px, 8.5vw, 38px);
+    line-height: 1.04;
+  }
+  .banner-actions { width: 100%; flex-wrap: wrap; }
+  .banner-actions .btn { flex: 1 1 140px; }
+  .admin-actions { flex-wrap: wrap; }
+  .admin-actions .btn { flex: 1 1 140px; }
+}
+

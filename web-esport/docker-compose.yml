@@ -4,13 +4,36 @@ services:
     container_name: esport_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: esport_password_123
-      POSTGRES_DB: TOURNAMEN_ESPORT
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-esport_password_123}
+      POSTGRES_DB: ${POSTGRES_DB:-TOURNAMEN_ESPORT}
     ports:
       - "5433:5432"
     volumes:
       - esport_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-postgres} -d $${POSTGRES_DB:-TOURNAMEN_ESPORT}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    container_name: esport_app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-esport_password_123}@db:5432/${POSTGRES_DB:-TOURNAMEN_ESPORT}
+      DATABASE_MIGRATOR_URL: postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-esport_password_123}@db:5432/${POSTGRES_DB:-TOURNAMEN_ESPORT}
+      JWT_SECRET: ${JWT_SECRET:-change_this_secret_to_at_least_32_random_bytes_in_production}
+      BIND_ADDR: 0.0.0.0:8080
+      DIST_DIR: /app/dist
+      RUST_LOG: ${RUST_LOG:-info}
+    ports:
+      - "${APP_PORT:-8080}:8080"
 
 volumes:
   esport_db_data:
+

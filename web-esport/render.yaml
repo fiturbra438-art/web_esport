@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: web-esport
+    runtime: docker
+    plan: free
+    healthCheckPath: /api
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_MIGRATOR_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DIST_DIR
+        value: /app/dist
+      - key: RUST_LOG
+        value: info

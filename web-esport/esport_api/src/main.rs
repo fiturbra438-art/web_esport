@@ -93,7 +93,7 @@ async fn main() {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    let dist_path = PathBuf::from("../dist");
+    let dist_path = PathBuf::from(env::var("DIST_DIR").unwrap_or_else(|_| "../dist".to_string()));
     let index_file = dist_path.join("index.html");
     let serve_dir = ServeDir::new(&dist_path)
         .fallback(ServeFile::new(index_file));
@@ -136,10 +136,15 @@ async fn main() {
         .with_state(pool)
         .fallback_service(serve_dir);
 
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:8080")
+    let bind_addr = env::var("BIND_ADDR").unwrap_or_else(|_| {
+        env::var("PORT")
+            .map(|port| format!("0.0.0.0:{port}"))
+            .unwrap_or_else(|_| "127.0.0.1:8080".to_string())
+    });
+    let listener = tokio::net::TcpListener::bind(&bind_addr)
         .await
-        .unwrap();
-    println!("🚀 Server siap menerima request di http://127.0.0.1:8080");
+        .unwrap_or_else(|error| panic!("❌ Gagal bind ke {bind_addr}: {error}"));
+    println!("🚀 Server siap menerima request di http://{bind_addr}");
 
     axum::serve(listener, app).await.unwrap();
 }
